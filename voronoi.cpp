@@ -3,6 +3,9 @@
 #include "cuda_runtime.h"
 #include "cuda_profiler_api.h"
 
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
 #include "Simulation.h"
 #include "voronoiQuadraticEnergy.h"
@@ -24,18 +27,18 @@ Voronoi model's computeForces() funciton right before saving a state.
 int main(int argc, char*argv[])
 {
     //...some default parameters
-    int numpts = 200; //number of cells
-    int USE_GPU = 0; //0 or greater uses a gpu, any negative number runs on the cpu
+    int numpts = 1024; //number of cells
+    int USE_GPU = -1; //-2 or greater uses a gpu, any negative number runs on the cpu
     int c;
-    int tSteps = 5; //number of time steps to run after initialization
-    int initSteps = 1; //number of initialization steps
+    int tSteps = 5; //number of time units to run after initialization
+    int initSteps = 1; //number of initialization time units
 
     double dt = 0.01; //the time step size
     double p0 = 3.8;  //the preferred perimeter
     double a0 = 1.0;  // the preferred area
     double T = 0.1;  // the temperature
     int Nchain = 4;     //The number of thermostats to chain together
-
+    
     //The defaults can be overridden from the command line
     while((c=getopt(argc,argv,"n:g:m:s:r:a:i:v:b:x:y:z:p:t:e:")) != -1)
         switch(c)
@@ -60,6 +63,16 @@ int main(int argc, char*argv[])
                        abort();
         };
 
+    //This part is to write the date+time the simulation started to the output file so previous simulations don't get overwritten by accident
+    std::ostringstream datetime;
+    std::time_t now = std::time(nullptr);
+    datetime << std::put_time(std::localtime(&now), "%m%d_%H%M%S");
+    std::string timestamp = datetime.str();
+
+    std::ostringstream filename;
+    filename << "energy_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".csv";
+    std::ofstream outfile(filename.str());
+
     clock_t t1,t2; //clocks for timing information
     bool reproducible = true; // if you want random numbers with a more random seed each run, set this to false
     //check to see if we should run on a GPU
@@ -69,19 +82,19 @@ int main(int argc, char*argv[])
         initializeGPU = false;
 
     //set-up a log-spaced state saver...can add as few as 1 database, or as many as you'd like. "0.1" will save 10 states per decade of time
-    logEquilibrationStateWriter lewriter(0.1);
-    char dataname[256];
-    double equilibrationTime = dt*initSteps;
-    vector<long long int> offsets;
-    offsets.push_back(0);
-    //offsets.push_back(100);offsets.push_back(1000);offsets.push_back(50);
-    for(int ii = 0; ii < offsets.size(); ++ii)
-        {
-        sprintf(dataname,"test_N%i_p%.5f_T%.8f_et%.6f.nc",numpts,p0,T,offsets[ii]*dt);
-        shared_ptr<simpleVoronoiDatabase> ncdat=make_shared<simpleVoronoiDatabase>(numpts,dataname,fileMode::replace);
-        lewriter.addDatabase(ncdat,offsets[ii]);
-        }
-    lewriter.identifyNextFrame();
+    //logEquilibrationStateWriter lewriter(0.1);
+    //char dataname[256];
+    //double equilibrationTime = dt*initSteps;
+    //vector<long long int> offsets;
+    //offsets.push_back(0);
+    ////offsets.push_back(100);offsets.push_back(1000);offsets.push_back(50);
+    //for(int ii = 0; ii < offsets.size(); ++ii)
+    //    {
+    //    sprintf(dataname,"test_N%i_p%.5f_T%.8f_et%.6f.nc",numpts,p0,T,offsets[ii]*dt);
+    //    shared_ptr<simpleVoronoiDatabase> ncdat=make_shared<simpleVoronoiDatabase>(numpts,dataname,fileMode::replace);
+    //    lewriter.addDatabase(ncdat,offsets[ii]);
+    //    }
+    //lewriter.identifyNextFrame();
 
 
     cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
@@ -126,13 +139,22 @@ int main(int argc, char*argv[])
     dynamicalFeatures dynFeat(voronoiModel->returnPositions(),voronoiModel->Box);
     t1=clock();
 //    cudaProfilerStart();
+
     for(long long int ii = 0; ii < tSteps; ++ii)
         {
+        double potentialEnergy = voronoiModel->computeEnergy();
+        double kineticEnergy = voronoiModel-> computeKineticEnergy();
+        double totalEnergy = potentialEnergy + kineticEnergy;
+        double sigmaXX = voronoiModel->getSigmaXX();
+        double sigmaYY = voronoiModel->getSigmaYY();
+        double totalPressure = (sigmaXX + sigmaYY) / 2;
+        
+        outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
 
-        if (ii == lewriter.nextFrameToSave)
-            {
-            lewriter.writeState(voronoiModel,ii);
-            }
+        //if (ii == lewriter.nextFrameToSave)
+        //    {
+        //    lewriter.writeState(voronoiModel,ii);
+        //    }
 
         sim->performTimestep();
         };
