@@ -39,7 +39,7 @@ int main(int argc, char*argv[])
     double a0 = 1.0;  // the preferred area
     double T = 0.1;  // the temperature
     double P = 0.1; //the pressure
-    bool pflag = false; //whether or not to run a barostat
+    double pflag = 0; //whether or not to run a barostat - any value other than 0 will run a barostat
     int Nchain = 4;     //The number of thermostats to chain together
     
     //The defaults can be overridden from the command line
@@ -54,7 +54,8 @@ int main(int argc, char*argv[])
             case 'p': p0 = atof(optarg); break;
             case 'a': a0 = atof(optarg); break;
             case 'v': T = atof(optarg); break;
-            case 'r': P = atof(optarg); break;
+            case 'r': P = atof(optarg); break; //for pRessure because p was already taken
+            case 'f': pflag = atof(optarg); break; //for flag
             case '?':
                     if(optopt=='c')
                         std::cerr<<"Option -" << optopt << "requires an argument.\n";
@@ -101,7 +102,7 @@ int main(int argc, char*argv[])
     //lewriter.identifyNextFrame();
 
     //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble
-    if (pflag = false) { 
+    if (pflag != 0) { 
     cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
     shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
         } else {

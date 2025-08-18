@@ -17,7 +17,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, bool useGPU)
     epsilon = 0.0;
     p_epsilon = 0.0;
     W = 1.0;
-    P_target = 0.0;
+    P_target = P;
     P_inst = 0.0;
     volume0 = Lx * Ly;
 
