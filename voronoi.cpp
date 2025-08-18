@@ -10,6 +10,7 @@
 #include "Simulation.h"
 #include "voronoiQuadraticEnergy.h"
 #include "NoseHooverChainNVT.h"
+#include "NoseHooverChainNPT_vv.h"
 #include "simpleVoronoiDatabase.h"
 #include "logEquilibrationStateWriter.h"
 #include "analysisPackage.h"
@@ -37,6 +38,8 @@ int main(int argc, char*argv[])
     double p0 = 3.8;  //the preferred perimeter
     double a0 = 1.0;  // the preferred area
     double T = 0.1;  // the temperature
+    double P = 0.1; //the pressure
+    bool pflag = false; //whether or not to run a barostat
     int Nchain = 4;     //The number of thermostats to chain together
     
     //The defaults can be overridden from the command line
@@ -51,6 +54,7 @@ int main(int argc, char*argv[])
             case 'p': p0 = atof(optarg); break;
             case 'a': a0 = atof(optarg); break;
             case 'v': T = atof(optarg); break;
+            case 'r': P = atof(optarg); break;
             case '?':
                     if(optopt=='c')
                         std::cerr<<"Option -" << optopt << "requires an argument.\n";
@@ -96,9 +100,14 @@ int main(int argc, char*argv[])
     //    }
     //lewriter.identifyNextFrame();
 
-
+    //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble
+    if (pflag = false) { 
     cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
-    shared_ptr<NoseHooverChainNVT> nvt = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
+    shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
+        } else {
+        cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl;
+        shared_ptr<NoseHooverChainNPT_vv> integrator = make_shared<NoseHooverChainNPT_vv>(numpts,Nchain,initializeGPU);
+    }
 
     //define a voronoi configuration with a quadratic energy functional
     shared_ptr<VoronoiQuadraticEnergy> voronoiModel  = make_shared<VoronoiQuadraticEnergy>(numpts,1.0,4.0,reproducible,initializeGPU);
@@ -107,12 +116,12 @@ int main(int argc, char*argv[])
     voronoiModel->setCellPreferencesWithRandomAreas(p0,0.8,1.2);
 
     voronoiModel->setCellVelocitiesMaxwellBoltzmann(T);
-    nvt->setT(T);
+    integrator->setT(T);
 
     //combine the equation of motion and the cell configuration in a "Simulation"
     SimulationPtr sim = make_shared<Simulation>();
     sim->setConfiguration(voronoiModel);
-    sim->addUpdater(nvt,voronoiModel);
+    sim->addUpdater(integrator,voronoiModel);
     //set the time step size
     sim->setIntegrationTimestep(dt);
     //initialize Hilbert-curve sorting... can be turned off by commenting out this line or seting the argument to a negative number
