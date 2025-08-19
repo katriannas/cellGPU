@@ -103,11 +103,11 @@ int main(int argc, char*argv[])
 
     //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble
     if (pflag != 0) { 
-    cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
-    shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
-        } else {
-        cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl;
-        shared_ptr<NoseHooverChainNPT_vv> integrator = make_shared<NoseHooverChainNPT_vv>(numpts,Nchain,initializeGPU);
+	    cout << "initializing a system of " << numpts << " cells at temperature " << T << endl; 
+	    shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU); 
+    } else { 
+	    cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl; 
+	    shared_ptr<NoseHooverChainNPT> integrator = make_shared<NoseHooverChainNPT>(numpts,Nchain,initializeGPU); 
     }
 
     //define a voronoi configuration with a quadratic energy functional
