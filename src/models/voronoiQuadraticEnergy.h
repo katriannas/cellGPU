@@ -57,18 +57,75 @@ class VoronoiQuadraticEnergy : public voronoiModelBase
         //!Report information about net forces...
         void reportForces(bool verbose);
 
+        //!Report information about net forces...
+        void reportTotalForce();
+
         //!Save tuples for half of the dynamical matrix
         virtual void getDynMatEntries(vector<int2> &rcs, vector<double> &vals,double unstress = 1.0, double stress = 1.0);
 
         //!calculate the current global off-diagonal stress
         virtual double getSigmaXY();
 
+        //!calculate the current global diagonal stress in x direction
+        virtual double getSigmaXX();
+
+        //!calculate the current global diagonal stress in y direction
+        virtual double getSigmaYY();
+
+        //!calculate the current global off-diagonal stress for each cell
+        virtual double getSigmaXY(vector<double> &sigmai);
+
+        //!calculate the current global d2Edgammadgamma
+        virtual double getd2Edgammadgamma();
+
+        //!calculate the current global getd2Edepsilondepsilon for pure shear
+        virtual double getd2Edepsilondepsilon();
+
+        //!calculate the current global getdEdepsilon for pure shear
+        virtual double getdEdepsilon();
+
+        //!calculate the current global getd2EdepsilonXdepsilonX
+	virtual double getd2EdepsilonXdepsilonX();
+
+        //!calculate the current global getd2EdepsilonYdepsilonY
+        virtual double getd2EdepsilonYdepsilonY();
+
+        //!calculate the current global d2Edgammadr for the shear modulus of inherent states
+        virtual void getd2Edgammadr(vector<double2> &d2Edgammadr);
+
+        //!calculate the current d2Edgammadgamma for each cell and return the global d2Edgammadgamma
+        virtual double getd2Edgammadgamma(vector<double> &d2Eidgammadgamma);
+
+        //!calculate the current d2Edgammadgamma for each cell and return the global d2Edgammadgamma
+        //! Using the method to reproduce 2018 no jamming transition paper
+       // virtual double getd2EdgammadgammaOldPaper();
+
+        //!calculate the current global d2Edgammadr for the shear modulus of inherent states
+        //! Using the method to reproduce 2018 no jamming transition paper and this is the corrected one
+        //virtual void getd2EdgammadrOldPaper(vector<double2> &d2Edgammadr);
+
+        //!calculate the current global d2Edgammadr for the shear modulus of inherent states
+        //! Using the method to reproduce 2018 no jamming transition paper
+        //virtual void getd2EdgammadrOldPaperWrong(vector<double2> &d2Edgammadr);
+
     protected:
         //! Second derivative of the energy w/r/t cell positions...for getting dynMat info
         Matrix2x2 d2Edridrj(int i, int j, neighborType neighbor,double unstress = 1.0, double stress = 1.0);
 
+        //! First derivative of the energy of cell i w/r/t the position of nth vertex of cell i
+        double2 deidHn(int i,int nn);
+
+        //! Second derivative of the energy of cell i w/r/t the position of nth vertex of cell i and the position of jth vertex of cell i
+        Matrix2x2 d2eidHndHj(int i,int nn, int j);
+
+        //calculate the derivative of energy i w.r.t positions of cell j and k
+        Matrix2x2 d2Eidrjdrk(int i, int j, int k);
+
     //be friends with the associated Database class so it can access data to store or read
+    friend class SPVDatabaseNetCDF;
     friend class nvtModelDatabase;
+    friend class nvtModelDatabase;
+    friend class GlassyDynModelDatabase;
     };
 
 #endif
