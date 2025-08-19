@@ -18,7 +18,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
     {
     public:
         //!The base constructor asks for the number of particles and the length of the chain
-        NoseHooverChainNPT(int N, int M=2, bool useGPU = true);
+        NoseHooverChainNPT(int N, int M, double P, bool useGPU);
 
         //!The system that can compute forces, move degrees of freedom, etc.
         shared_ptr<Simple2DModel> State;
@@ -35,7 +35,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         //!Get temperature, T
         double getT(){return Temperature;};
         //!Set temperature, T, and also the bath masses!
-        void setT(double _T);
+        void setT(double T);
 
         //!Helper structure for GPU branch. A two-component GPU array that contains the total KE and the velocity scale factor
         GPUArray<double> kineticEnergyScaleFactor;

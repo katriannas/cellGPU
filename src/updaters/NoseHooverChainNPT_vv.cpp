@@ -11,7 +11,7 @@ extern double getSigmaYY();
 Initialize everything, by default setting the target temperature to unity.
 Note that in the current set up the thermostate masses are automatically set by the target temperature, assuming \tau = 1
 */
-NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, bool useGPU)
+NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, bool useGPU)
     {
     //Initialise barostat variables
     epsilon = 0.0;
