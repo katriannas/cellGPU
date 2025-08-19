@@ -101,14 +101,15 @@ int main(int argc, char*argv[])
     //    }
     //lewriter.identifyNextFrame();
 
-    //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble
-    if (pflag != 0) { 
-	    cout << "initializing a system of " << numpts << " cells at temperature " << T << endl; 
-	    shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU); 
-    } else { 
-	    cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl; 
-	    shared_ptr<NoseHooverChainNPT> integrator = make_shared<NoseHooverChainNPT>(numpts,Nchain,initializeGPU); 
+    //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble 
+    if (pflag = 0){
+        cout << "initializing a system of " << numpts << " cells at temperature " << T << endl; 
+    } else {
+        cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl;
     }
+
+    shared_ptr<NoseHooverChainNVT> nvt = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU); 
+    shared_ptr<NoseHooverChainNPT> npt = make_shared<NoseHooverChainNPT>(numpts,Nchain,initializeGPU);  
 
     //define a voronoi configuration with a quadratic energy functional
     shared_ptr<VoronoiQuadraticEnergy> voronoiModel  = make_shared<VoronoiQuadraticEnergy>(numpts,1.0,4.0,reproducible,initializeGPU);
@@ -117,13 +118,21 @@ int main(int argc, char*argv[])
     voronoiModel->setCellPreferencesWithRandomAreas(p0,0.8,1.2);
 
     voronoiModel->setCellVelocitiesMaxwellBoltzmann(T);
-    integrator->setT(T);
+    if (pflag = 0){
+        nvt->setT(T);
+    } else {
+        npt->setT(T);
+    }
 
     //combine the equation of motion and the cell configuration in a "Simulation"
     SimulationPtr sim = make_shared<Simulation>();
     sim->setConfiguration(voronoiModel);
-    sim->addUpdater(integrator,voronoiModel);
-    //set the time step size
+    if (pflag = 0) {
+         sim->addUpdater(nvt,voronoiModel);
+    } else {
+        sim->addUpdater(npt,voronoiModel);
+    }
+   //set the time step size
     sim->setIntegrationTimestep(dt);
     //initialize Hilbert-curve sorting... can be turned off by commenting out this line or seting the argument to a negative number
     //sim->setSortPeriod(initSteps/10);
