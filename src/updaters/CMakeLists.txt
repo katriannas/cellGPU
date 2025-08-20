@@ -22,6 +22,7 @@ add_library(updaters
     EnergyMinimizerFIRE2D.cpp
     MullerPlatheShear.cpp
     NoseHooverChainNVT.cpp
+    NoseHooverChainNPT_vv.cpp
     selfPropelledAligningParticleDynamics.cpp
     selfPropelledCellVertexDynamics.cpp
     selfPropelledParticleDynamics.cpp

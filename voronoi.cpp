@@ -29,7 +29,7 @@ int main(int argc, char*argv[])
 {
     //...some default parameters
     int numpts = 1024; //number of cells
-    int USE_GPU = -1; //-2 or greater uses a gpu, any negative number runs on the cpu
+    int USE_GPU = -1; //2 or greater uses a gpu, any negative number runs on the cpu
     int c;
     int tSteps = 5; //number of time units to run after initialization
     int initSteps = 1; //number of initialization time units
@@ -81,10 +81,10 @@ int main(int argc, char*argv[])
     clock_t t1,t2; //clocks for timing information
     bool reproducible = true; // if you want random numbers with a more random seed each run, set this to false
     //check to see if we should run on a GPU
-    bool initializeGPU = true;
-    bool gpu = chooseGPU(USE_GPU);
-    if (!gpu)
-        initializeGPU = false;
+    // bool initializeGPU = true;
+    // bool gpu = chooseGPU(USE_GPU);
+    // if (!gpu)
+    initializeGPU = false;
 
     //set-up a log-spaced state saver...can add as few as 1 database, or as many as you'd like. "0.1" will save 10 states per decade of time
     //logEquilibrationStateWriter lewriter(0.1);
@@ -101,15 +101,22 @@ int main(int argc, char*argv[])
     //    }
     //lewriter.identifyNextFrame();
 
-    //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble 
-    if (pflag = 0){
-        cout << "initializing a system of " << numpts << " cells at temperature " << T << endl; 
-    } else {
+    //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble
+    if (pflag != 0) { 
+    cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
+    shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
+        } else {
         cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl;
+    if (pflag != 0) { 
+    cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
+    shared_ptr<NoseHooverChainNVT> integrator = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
+        } else {
+        cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl;
+        shared_ptr<NoseHooverChainNPT> integrator = make_shared<NoseHooverChainNPT>(numpts,Nchain,initializeGPU);
     }
 
-    shared_ptr<NoseHooverChainNVT> nvt = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU); 
-    shared_ptr<NoseHooverChainNPT> npt = make_shared<NoseHooverChainNPT>(numpts,Nchain,initializeGPU);  
+        shared_ptr<NoseHooverChainNPT> integrator = make_shared<NoseHooverChainNPT>(numpts,Nchain,initializeGPU);
+    }
 
     //define a voronoi configuration with a quadratic energy functional
     shared_ptr<VoronoiQuadraticEnergy> voronoiModel  = make_shared<VoronoiQuadraticEnergy>(numpts,1.0,4.0,reproducible,initializeGPU);
@@ -118,21 +125,13 @@ int main(int argc, char*argv[])
     voronoiModel->setCellPreferencesWithRandomAreas(p0,0.8,1.2);
 
     voronoiModel->setCellVelocitiesMaxwellBoltzmann(T);
-    if (pflag = 0){
-        nvt->setT(T);
-    } else {
-        npt->setT(T);
-    }
+    integrator->setT(T);
 
     //combine the equation of motion and the cell configuration in a "Simulation"
     SimulationPtr sim = make_shared<Simulation>();
     sim->setConfiguration(voronoiModel);
-    if (pflag = 0) {
-         sim->addUpdater(nvt,voronoiModel);
-    } else {
-        sim->addUpdater(npt,voronoiModel);
-    }
-   //set the time step size
+    sim->addUpdater(integrator,voronoiModel);
+    //set the time step size
     sim->setIntegrationTimestep(dt);
     //initialize Hilbert-curve sorting... can be turned off by commenting out this line or seting the argument to a negative number
     //sim->setSortPeriod(initSteps/10);

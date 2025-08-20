@@ -18,7 +18,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
     {
     public:
         //!The base constructor asks for the number of particles and the length of the chain
-        NoseHooverChainNPT(int N, int M, double P, bool useGPU);
+        NoseHooverChainNPT(int N, int M, double P);
 
         //!The system that can compute forces, move degrees of freedom, etc.
         shared_ptr<Simple2DModel> State;
@@ -30,7 +30,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         //!call the CPU routine to integrate the e.o.m.
         virtual void integrateEquationsOfMotionCPU();
         //!call the GPU routine to integrate the e.o.m.
-        virtual void integrateEquationsOfMotionGPU();
+        //! virtual void integrateEquationsOfMotionGPU();
 
         //!Get temperature, T
         double getT(){return Temperature;};
@@ -45,6 +45,8 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         //!Report the current status of the bath
         void reportBathData();
 
+        virtual ~NoseHooverChainNPT();
+
     protected:
         //!Barostat position
         double epsilon;
@@ -55,7 +57,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         double P_target;
         double P_inst;
         //!"Neutral" area - when pressure is at target pressure exactly??
-        double volume0;
+        double V;
 
         //Barostat helpers
         double barostatKineticEnergy();

@@ -1,7 +1,7 @@
 #include "voronoiQuadraticEnergy.h"
 #include "Simple2DCell.h"
-#include "NoseHooverChainNPT.h"
-#include "NoseHooverChainNPT.cuh"
+#include "NoseHooverChainNPT_vv.h"
+#include "voronoiQuadraticEnergy.h"
 #include "utilities.cuh"
 
 /* extern double getSigmaXX();
@@ -11,7 +11,7 @@ extern double getSigmaYY();
 Initialize everything, by default setting the target temperature to unity.
 Note that in the current set up the thermostate masses are automatically set by the target temperature, assuming \tau = 1
 */
-NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, bool useGPU)
+NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
     {
     //Initialise barostat variables
     epsilon = 0.0;
@@ -19,11 +19,13 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, bool useGPU)
     W = 1.0;
     P_target = P;
     P_inst = 0.0;
-    volume0 = Lx * Ly;
+    V = 1; //start with a unit cell
+    Lx = 1;
+    Ly = 1;
 
     Timestep = 0;
     deltaT=0.01;
-    GPUcompute=useGPU;
+    GPUcompute=false;
     if(!GPUcompute)
         {
         kineticEnergyScaleFactor.neverGPU = true;
@@ -84,7 +86,8 @@ void NoseHooverChainNPT::integrateEquationsOfMotion()
         displacements.resize(Ndof);
         setT(Temperature); //the bath mass depends on the number of degrees of freedom
         };
-    if(GPUcompute)
+    integrateEquationsOfMotionCPU();
+    /* if(GPUcompute)
         {
         integrateEquationsOfMotionGPU();
         }
@@ -92,6 +95,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotion()
         {
         integrateEquationsOfMotionCPU();
         }
+        */
     };
 
 /*!
@@ -151,7 +155,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     double delta_eps = epsilon - epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        setRectangularUnitCell(Lx * delta_elps, Ly * delta_eps);
+        setRectangularUnitCell(Lx, Ly);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -175,7 +179,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     computeInstantaneousPressure();
     double deltaT2 = deltaT * 0.5;
     const int d = 2;
-    double V = volume0 * exp(static_cast<double>(d) * epsilon);
+    V = V * exp(static_cast<double>(d) * epsilon);
     p_epsilon += deltaT2 * V * (P_inst - P_target);
     double epsilon_dot = p_epsilon / W;
     epsilon += deltaT2 * epsilon_dot;
@@ -196,7 +200,7 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
         K += 0.5 * mi * v2;
         }
 
-    double V = volume0 * exp(static_cast<double>(d) * epsilon);
+    V = V * exp(static_cast<double>(d) * epsilon);
 
     double SigmaXX = getSigmaXX();
     double SigmaYY = getSigmaYY();
@@ -212,7 +216,9 @@ void NoseHooverChainNPT::updateBarostatHalfStep()
     computeInstantaneousPressure();
     double deltaT2 = deltaT * 0.5
     const int d = 2;
-    double V = volume0 * exp(static_cast<double>(d) * epsilon);
+    V = volume0 * exp(static_cast<double>(d) * epsilon);
+    Lx = Lx * exp(static_cast<double>(d) * epsilon);
+    Ly = Ly * exp(static_cast<double>(d) * epsilon);
     p_epsilon += deltaT2 * V * (P_inst - P_target);
     double epsilon_dot = p_epsilon / W;
     epsilon += deltaT2 * epsilon_dot;
@@ -339,7 +345,7 @@ void NoseHooverChainNPT::propagateChain()
         Bath.data[ii].y *= ef;
         };
     };
-void NoseHooverChainNPT::propagateChainGPU()
+/* void NoseHooverChainNPT::propagateChainGPU()
     {
     ArrayHandle<double> d_kes(kineticEnergyScaleFactor,access_location::device,access_mode::readwrite);
     ArrayHandle<double4> d_Bath(BathVariables,access_location::device,access_mode::readwrite);
@@ -349,7 +355,7 @@ void NoseHooverChainNPT::propagateChainGPU()
 /*!
 The GPU implementation of the identical algorithm done on the CPU
 */
-void NoseHooverChainNPT::integrateEquationsOfMotionGPU()
+/* void NoseHooverChainNPT::integrateEquationsOfMotionGPU()
     {
     //The kernel calling scheme. To avoid ridiculous numbers of brackets for array handle scoping,
     //we'll define helper functions
@@ -366,7 +372,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionGPU()
 /*!
 Do a multi-step dance to get the positions and velocities updated on the gpu branch
 */
-void NoseHooverChainNPT::propagatePositionsVelocitiesGPU()
+/* void NoseHooverChainNPT::propagatePositionsVelocitiesGPU()
     {
     double deltaT2 = 0.5*deltaT;
     //first, we move particles according to their velocities
@@ -388,7 +394,7 @@ void NoseHooverChainNPT::propagatePositionsVelocitiesGPU()
 This combines multiple kernel calls. First we make a vector of kinetic energies per particle, then
 we perform a parallel block reduction, and then a serial reduction
 */
-void NoseHooverChainNPT::calculateKineticEnergyGPU()
+/* void NoseHooverChainNPT::calculateKineticEnergyGPU()
     {
     {//array handle scope for keArray preparation
     ArrayHandle<double2> d_v(State->returnVelocities(),access_location::device,access_mode::read);
@@ -409,9 +415,11 @@ void NoseHooverChainNPT::calculateKineticEnergyGPU()
 /*!
 Simply call the velocity rescaling function...
 */
-void NoseHooverChainNPT::rescaleVelocitiesGPU()
+/* void NoseHooverChainNPT::rescaleVelocitiesGPU()
     {
     ArrayHandle<double2> d_v(State->returnVelocities(),access_location::device,access_mode::readwrite);
     ArrayHandle<double> d_kes(kineticEnergyScaleFactor,access_location::device,access_mode::read);
     gpu_NoseHooverChainNPT_scale_velocities(d_v.data,d_kes.data,Ndof);
     };
+*/ 
+NoseHooverChainNPT::~NoseHooverChainNPT() = default;
