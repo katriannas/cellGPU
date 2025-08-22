@@ -216,7 +216,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep()
     computeInstantaneousPressure();
     double deltaT2 = deltaT * 0.5
     const int d = 2;
-    V = volume0 * exp(static_cast<double>(d) * epsilon);
+    V = V * exp(static_cast<double>(d) * epsilon);
     Lx = Lx * exp(static_cast<double>(d) * epsilon);
     Ly = Ly * exp(static_cast<double>(d) * epsilon);
     p_epsilon += deltaT2 * V * (P_inst - P_target);
@@ -252,8 +252,9 @@ void NoseHooverChainNPT::reportBarostatData()
            W,
            P_target,
            P_inst,
-           volume0,
-           volume0 * exp(2.0 * epsilon),
+           V,
+           State->computeEnergy();
+           //State->compute
            barostatKineticEnergy());
 }
 
