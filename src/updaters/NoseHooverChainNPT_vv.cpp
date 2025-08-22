@@ -20,8 +20,8 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
     P_target = P;
     P_inst = 0.0;
     V = 1; //start with a unit cell
-    Lx = 1;
-    Ly = 1;
+    double Lx = 1;
+    double Ly = 1;
 
     Timestep = 0;
     deltaT=0.01;
@@ -140,7 +140,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     double delta_eps = epsilon - epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        setRectangularUnitCell(Lx * delta_elps, Ly * delta_eps);
+        setRectangularUnitCell(Lx * delta_eps, Ly * delta_eps);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -202,8 +202,8 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
 
     V = V * exp(static_cast<double>(d) * epsilon);
 
-    double SigmaXX = getSigmaXX();
-    double SigmaYY = getSigmaYY();
+    double SigmaXX = State->getSigmaXX();
+    double SigmaYY = State->getSigmaYY();
     double virial2D = 0.5 * (SigmaXX + SigmaYY);
 
     P_inst = virial2D + (K / V);

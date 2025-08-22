@@ -178,6 +178,7 @@ int main(int argc, char*argv[])
         };
 //    cudaProfilerStop();
     t2=clock();
+    npt->reportBarostatData();
     printf("final state:\t\t energy %f \t msd %f \t overlap %f\n",voronoiModel->computeEnergy(),dynFeat.computeMSD(voronoiModel->returnPositions()),dynFeat.computeOverlapFunction(voronoiModel->returnPositions()));
     double steptime = (t2-t1)/(double)CLOCKS_PER_SEC/tSteps;
     cout << "timestep ~ " << steptime << " per frame; " << endl;
