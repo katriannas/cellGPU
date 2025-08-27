@@ -20,8 +20,9 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
     P_target = P;
     P_inst = 0.0;
     V = 1; //start with a unit cell
-    double Lx = 1;
-    double Ly = 1;
+    Lx = 1;
+    Ly = 1;
+    d = 2; //dimensionality
 
     Timestep = 0;
     deltaT=0.01;
@@ -135,12 +136,12 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
 
     //Barostat half-step + rescale
     {
-    double epsilon_old = epsilon;
+    epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    double delta_eps = epsilon - epsilon_old; //Change in position
+    delta_eps = epsilon - epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        setRectangularUnitCell(Lx * delta_eps, Ly * delta_eps);
+        Cell->setRectangularUnitCell(Lx * delta_eps, Ly * delta_eps);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -150,12 +151,12 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
 
     //Barostat half-step + rescale
     {
-    double epsilon_old = epsilon;
+    epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    double delta_eps = epsilon - epsilon_old; //Change in position
+    delta_eps = epsilon - epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        setRectangularUnitCell(Lx, Ly);
+        Cell-> setRectangularUnitCell(Lx, Ly);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -174,21 +175,20 @@ double NoseHooverChainNPT::barostatKineticEnergy()
     return 0.5 * p_epsilon * p_epsilon / W;
     }
 
-void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
-{
-    computeInstantaneousPressure();
-    double deltaT2 = deltaT * 0.5;
-    const int d = 2;
-    V = V * exp(static_cast<double>(d) * epsilon);
-    p_epsilon += deltaT2 * V * (P_inst - P_target);
-    double epsilon_dot = p_epsilon / W;
-    epsilon += deltaT2 * epsilon_dot;
-}
+//! void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
+//! {
+//!    computeInstantaneousPressure();
+//!    double deltaT2 = deltaT * 0.5;
+//!    const int d = 2;
+//!    V = V * exp(static_cast<double>(d) * epsilon);
+//!    p_epsilon += deltaT2 * V * (P_inst - P_target);
+//!    double epsilon_dot = p_epsilon / W;
+//!    epsilon += deltaT2 * epsilon_dot;
+//!}
 
 void NoseHooverChainNPT::computeInstantaneousPressure()
     {
     //P_inst = 0.5*(SigmaXX + SigmaYY) + K / V 
-    const int d = 2;
     ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::read);
     ArrayHandle<double>   h_m(State->returnMasses(),access_location::host,access_mode::read);
 
@@ -202,33 +202,31 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
 
     V = V * exp(static_cast<double>(d) * epsilon);
 
-    double SigmaXX = State->getSigmaXX();
-    double SigmaYY = State->getSigmaYY();
+    double SigmaXX = VQE->getSigmaXX();
+    double SigmaYY = VQE->getSigmaYY();
     double virial2D = 0.5 * (SigmaXX + SigmaYY);
 
     P_inst = virial2D + (K / V);
     }
 
-void NoseHooverChainNPT::updateBarostatHalfStep()
+void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     {
     //p_epsilon += 0.5*dt * V * (P_inst - P_target)
     //epsilon    += 0.5*dt * (p_epsilon / W)
     computeInstantaneousPressure();
-    double deltaT2 = deltaT * 0.5
-    const int d = 2;
+    double deltaT2 = deltaT * 0.5;
     V = V * exp(static_cast<double>(d) * epsilon);
     Lx = Lx * exp(static_cast<double>(d) * epsilon);
     Ly = Ly * exp(static_cast<double>(d) * epsilon);
     p_epsilon += deltaT2 * V * (P_inst - P_target);
     double epsilon_dot = p_epsilon / W;
     epsilon += deltaT2 * epsilon_dot;
-    double delta_epsilon = epsilon - epsilon_old
+    double delta_epsilon = epsilon - epsilon_old;
     }
 
-void NoseHooverChainNPT::rescaleVelocitiesBarostat()
+void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
     {
     //Velocities scale by exp(-d*delta_eps/2)
-    const int d = 2;
     double vscale = exp(-0.5 * delta_epsilon * d);
     ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
@@ -253,8 +251,8 @@ void NoseHooverChainNPT::reportBarostatData()
            P_target,
            P_inst,
            V,
-           State->computeEnergy();
-           //State->compute
+           VQE->computeEnergy(),
+           Cell->computeKineticEnergy(),
            barostatKineticEnergy());
 }
 
@@ -321,6 +319,7 @@ void NoseHooverChainNPT::propagateChain()
     Bath.data[0].y += Bath.data[0].z*dt4;
     Bath.data[0].y *= ef;
 
+    //update bath positions (half timestep)
     //update bath positions (half timestep)
     for (int ii = 0; ii < Nchain; ++ii)
         Bath.data[ii].x += dt2*Bath.data[ii].y;
@@ -400,7 +399,6 @@ we perform a parallel block reduction, and then a serial reduction
     {//array handle scope for keArray preparation
     ArrayHandle<double2> d_v(State->returnVelocities(),access_location::device,access_mode::read);
     ArrayHandle<double> d_m(State->returnMasses(),access_location::device,access_mode::read);
-    ArrayHandle<double> d_keArray(keArray,access_location::device,access_mode::overwrite);
     gpu_prepare_KE_vector(d_v.data,d_m.data,d_keArray.data,Ndof);
     }
 

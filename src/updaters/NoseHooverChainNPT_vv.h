@@ -24,6 +24,12 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         shared_ptr<Simple2DModel> State;
         //!set the internal State to the given model
         virtual void set2DModel(shared_ptr<Simple2DModel> _model){State = _model;};
+        //!Also need Simple2DCell for the unit cell rescaling
+        shared_ptr<Simple2DCell> Cell;
+        virtual void set2DCell(shared_ptr<Simple2DCell> _model){Cell = _model;};
+        //!Also need voronoiQuadraticEnergy for computeEnergy() and getSigmaXX, getSigmaYY
+        shared_ptr<VoronoiQuadraticEnergy> VQE;
+        virtual void set2DCell(shared_ptr<VoronoiQuadraticEnergy> _model){VQE = _model;};
 
         //!the fundamental function that models will call, using vectors of different data structures
         virtual void integrateEquationsOfMotion();
@@ -44,6 +50,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
 
         //!Report the current status of the bath
         void reportBathData();
+        void reportBarostatData();
 
         virtual ~NoseHooverChainNPT();
 
@@ -52,12 +59,17 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         double epsilon;
         //!Barostat momentum and mass
         double p_epsilon;
+        double epsilon_old;
+        double delta_eps;
         double W;
         //!Target pressure and instantaneous pressure
         double P_target;
         double P_inst;
         //!"Neutral" area - when pressure is at target pressure exactly??
         double V;
+        double Lx;
+        double Ly;
+        int d;
 
         //Barostat helpers
         double barostatKineticEnergy();
@@ -67,7 +79,6 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         void rescaleBoxAndPositions(double delta_epsilon);
         void rescaleVelocitiesBarostat(double delta_epsilon);
         void rescaleThermoVelocities();
-        void reportBarostatData();
 
         //!The targeted temperature
         double Temperature;
