@@ -27,7 +27,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         //!Also need Simple2DCell for the unit cell rescaling
         shared_ptr<Simple2DCell> Cell;
         virtual void set2DCell(shared_ptr<Simple2DCell> _model){Cell = _model;};
-        //!Also need voronoiQuadraticEnergy for computeEnergy, getSigmaXX, and getSigmaYY
+        //!Also need VoronoiQuadraticEnergy for computeEnergy, getSigmaXX, and getSigmaYY
         shared_ptr<VoronoiQuadraticEnergy> VQE;
         virtual void setVoronoiQuadraticEnergy(shared_ptr<VoronoiQuadraticEnergy> _vqe){VQE = _vqe;};
 
