@@ -9,7 +9,6 @@
 #include "structures.h"
 #include "voronoiModelBase.cuh"
 
-class simpleVoronoiDatabase;
 
 /*! \file voronoiModelBase.h */
 //! Perform and test triangulations in an MD setting, using kernels in \ref voronoiModelBaseKernels
@@ -89,8 +88,6 @@ class voronoiModelBase : public Simple2DActiveCell
         //set number of threads
         virtual void setOmpThreads(int _number){ompThreadNum = _number;delGPU.setOmpThreads(_number);};
 
-    //protected functions
-    protected:
         //!sort points along a Hilbert curve for data locality
         void spatialSorting();
 
@@ -116,6 +113,10 @@ class voronoiModelBase : public Simple2DActiveCell
         //Some functions associated with derivates of voronoi vertex positions or cell geometries
         //!The derivative of a voronoi vertex position with respect to change in the first cells position
         Matrix2x2 dHdri(double2 ri, double2 rj, double2 rk);
+        //!The derivative of a voronoi vertex position with respect to change in the first cells position and the shear DOF
+        Matrix2x2 d2Hdridgamma(double2 ri, double2 rj, double2 rk);
+        //!The second derivative of a voronoi vertex position with respect to change in the cell positions
+        void d2Hdridrj(double2 ri, double2 rj, double2 rk, bool sameCell, Matrix2x2 &answerx, Matrix2x2 &answery);
         //!Derivative of the area of cell i with respect to the position of cell j
         double2 dAidrj(int i, int j);
         //!Derivative of the perimeter of cell i with respect to the position of cell j
@@ -126,8 +127,26 @@ class voronoiModelBase : public Simple2DActiveCell
         Matrix2x2 d2Peridvdr(Matrix2x2 &dvdr, Matrix2x2 &dvmdr, Matrix2x2 &dvpdr,double2 vm, double2 v, double2 vp);
         //!second derivatives of voronoi vertex with respect to cell positions
         vector<double> d2Hdridrj(double2 rj, double2 rk, int jj);
+        //!First derivative of voronoi vertex with respect to shear strain gamma
+        double2 dHdgamma(double2 r1, double2 r2, double2 r3);
+        //!First derivative of voronoi vertex with respect to shear strain gamma. Here we consider only shear by Lees-Edwards without deforming the box.
+        double2 dHdgammaOnBounday(double2 r1, double2 r2, double2 r3);
+        //!Second derivative of voronoi vertex with respect to shear strain gamma
+        double2 d2Hdgamma2(double2 r1, double2 r2, double2 r3);
+        //!First derivative of voronoi vertex with respect to strain epsilon x
+        double2 dHdex(double2 r1, double2 r2, double2 r3);        
+        //!First derivative of voronoi vertex with respect to strain epsilon y
+        double2 dHdey(double2 r1, double2 r2, double2 r3);
+        //!Second derivative of voronoi vertex with respect to strain epsilon x
+        double2 d2Hdexdex(double2 r1, double2 r2, double2 r3);        
+        //!Second derivative of voronoi vertex with respect to strain epsilon y
+        double2 d2Hdeydey(double2 r1, double2 r2, double2 r3);
+        //!First derivative of voronoi vertex with respect to pure shear strain epsilon
+        double2 dHdep(double2 r1, double2 r2, double2 r3);    
+        //!Second derivative of voronoi vertex with respect to pure shear strain epsilon
+        double2 d2Hdepdep(double2 r1, double2 r2, double2 r3);   
 
-    //public member variables
+        //public member variables
     public:
         //!The class' local Delaunay tester/updater
         DelaunayGPU delGPU;
@@ -191,7 +210,6 @@ class voronoiModelBase : public Simple2DActiveCell
 
         //!In GPU mode, interactions are computed "per voronoi vertex"...forceSets are summed up to get total force on a particle
         GPUArray<double2> forceSets;
-    friend class simpleVoronoiDatabase;
     };
 
 #endif
