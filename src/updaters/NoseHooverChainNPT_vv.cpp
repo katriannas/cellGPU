@@ -251,7 +251,7 @@ void NoseHooverChainNPT::reportBarostatData()
            P_target,
            P_inst,
            V,
-           VQE->computeEnergy(),
+           voronoiModel->computeEnergy(),
            Cell->computeKineticEnergy(),
            barostatKineticEnergy());
 }

@@ -40,6 +40,8 @@ int main(int argc, char*argv[])
     double a0 = 1.0;  // the preferred area
     double T = 0.1;  // the temperature
     double P = 0.1; //the pressure
+    double Lx = 1; //initialise unit cell
+    double Ly = 1; //initialise unit cell
     double pflag = 0; //whether or not to run a barostat - any value other than 0 will run a barostat
     int Nchain = 4;     //The number of thermostats to chain together
     
@@ -115,6 +117,12 @@ int main(int argc, char*argv[])
 
     //define a voronoi configuration with a quadratic energy functional
     shared_ptr<VoronoiQuadraticEnergy> voronoiModel  = make_shared<VoronoiQuadraticEnergy>(numpts,1.0,4.0,reproducible,initializeGPU);
+    //tell the updater to use voronoiQuadraticEnergy to compute instantaneous pressure
+    npt-> setVoronoiQuadraticEnergy(voronoiModel);
+
+    //tell the updater to use Simple2DCell to rescale the box
+    shared_ptr<Simple2DCell> Cell = make_shared<Simple2DCell>(Lx, Ly);
+    npt-> set2DCell(Cell);
 
     //set the cell preferences to uniformly have A_0 = 1, P_0 = p_0
     voronoiModel->setCellPreferencesWithRandomAreas(p0,0.8,1.2);
