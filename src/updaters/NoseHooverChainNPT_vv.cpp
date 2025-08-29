@@ -202,8 +202,8 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
 
     V = V * exp(static_cast<double>(d) * epsilon);
 
-    double SigmaXX = VQE->getSigmaXX();
-    double SigmaYY = VQE->getSigmaYY();
+    double SigmaXX = voronoiModel->getSigmaXX();
+    double SigmaYY = voronoiModel->getSigmaYY();
     double virial2D = 0.5 * (SigmaXX + SigmaYY);
 
     P_inst = virial2D + (K / V);
