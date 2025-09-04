@@ -117,12 +117,6 @@ int main(int argc, char*argv[])
 
     //define a voronoi configuration with a quadratic energy functional
     shared_ptr<VoronoiQuadraticEnergy> voronoiModel  = make_shared<VoronoiQuadraticEnergy>(numpts,1.0,4.0,reproducible,initializeGPU);
-    //tell the updater to use voronoiQuadraticEnergy to compute instantaneous pressure
-    npt-> setVoronoiQuadraticEnergy(voronoiModel);
-
-    //tell the updater to use Simple2DCell to rescale the box
-    shared_ptr<Simple2DCell> Cell = make_shared<Simple2DCell>(Lx, Ly);
-    npt-> set2DCell(Cell);
 
     //set the cell preferences to uniformly have A_0 = 1, P_0 = p_0
     voronoiModel->setCellPreferencesWithRandomAreas(p0,0.8,1.2);

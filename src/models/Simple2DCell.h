@@ -180,7 +180,7 @@ class Simple2DCell : public Simple2DModel
         /*!
         in general, we have:
         vertexNeighbors[3*i], vertexNeighbors[3*i+1], and vertexNeighbors[3*i+2] contain the indices
-        of the three vertices that are connected to vertex i
+    of the three vertices that are connected to vertex i
         */
         GPUArray<int> vertexNeighbors;
 

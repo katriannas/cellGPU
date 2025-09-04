@@ -54,10 +54,10 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
 
 //Set pointer to refer to voronoiModel
 
-void NoseHooverChainNPT::set2DModel(shared_ptr<Simple2DModel> State)
+void NoseHooverChainNPT::set2DModel(shared_ptr<Simple2DModel> model)
             {
-            =_model;
-            activeModel = dynamic_pointer_cast<voronoiModel>(model);
+            State = model;
+            voronoi = std::dynamic_pointer_cast<VoronoiQuadraticEnergy>(model);
         }
 
 /*!
@@ -89,9 +89,9 @@ outside of the normal timestep loops.
 void NoseHooverChainNPT::integrateEquationsOfMotion()
     {
     Timestep += 1;
-    if (State->getNumberOfDegreesOfFreedom() != Ndof)
+    if (voronoi->getNumberOfDegreesOfFreedom() != Ndof)
         {
-        Ndof = State->getNumberOfDegreesOfFreedom();
+        Ndof = voronoi->getNumberOfDegreesOfFreedom();
         displacements.resize(Ndof);
         setT(Temperature); //the bath mass depends on the number of degrees of freedom
         };
@@ -149,7 +149,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     delta_eps = epsilon - epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        Cell->setRectangularUnitCell(Lx * delta_eps, Ly * delta_eps);
+        setRectangularUnitCell(Lx, Ly, delta_eps);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -164,7 +164,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     delta_eps = epsilon - epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        Cell-> setRectangularUnitCell(Lx, Ly);
+        setRectangularUnitCell(Lx, Ly, delta_eps);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -177,6 +177,18 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     }
 
 //Barostat-related functions
+
+void NoseHooverChainNPT::setRectangularUnitCell(double Lx, double Ly, double delta_eps)
+{
+    Lx = Lx * delta_eps;
+    Ly = Ly * delta_eps;
+    ArrayHandle<double2> h_p(voronoi->cellPositions,access_location::host,access_mode::readwrite);
+    for (int ii = 0; ii < Ndof; ++ii)
+        {
+        h_p.data[ii].x = h_p.data[ii].x*Lx;
+        h_p.data[ii].y = h_p.data[ii].y*Ly;
+        }; 
+}
 
 double NoseHooverChainNPT::barostatKineticEnergy()
     {
@@ -197,8 +209,8 @@ double NoseHooverChainNPT::barostatKineticEnergy()
 void NoseHooverChainNPT::computeInstantaneousPressure()
     {
     //P_inst = 0.5*(SigmaXX + SigmaYY) + K / V 
-    ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::read);
-    ArrayHandle<double>   h_m(State->returnMasses(),access_location::host,access_mode::read);
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
+    ArrayHandle<double>   h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
 
     double K = 0.0;
     for (int ii = 0; ii < Ndof; ++ii)
@@ -210,8 +222,8 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
 
     V = V * exp(static_cast<double>(d) * epsilon);
 
-    double SigmaXX = voronoiModel->getSigmaXX();
-    double SigmaYY = voronoiModel->getSigmaYY();
+    double SigmaXX = voronoi->getSigmaXX();
+    double SigmaYY = voronoi->getSigmaYY();
     double virial2D = 0.5 * (SigmaXX + SigmaYY);
 
     P_inst = virial2D + (K / V);
@@ -229,13 +241,13 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     p_epsilon += deltaT2 * V * (P_inst - P_target);
     double epsilon_dot = p_epsilon / W;
     epsilon += deltaT2 * epsilon_dot;
-    double delta_epsilon = epsilon - epsilon_old;
+    double delta_eps = epsilon - epsilon_old;
     }
 
-void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
+void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_eps)
     {
     //Velocities scale by exp(-d*delta_eps/2)
-    double vscale = exp(-0.5 * delta_epsilon * d);
+    double vscale = exp(-0.5 * delta_eps * d);
     ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = vscale * h_v.data[ii];
@@ -259,8 +271,8 @@ void NoseHooverChainNPT::reportBarostatData()
            P_target,
            P_inst,
            V,
-           voronoiModel->computeEnergy(),
-           Cell->computeKineticEnergy(),
+           voronoi->computeEnergy(),
+           voronoi->computeKineticEnergy(),
            barostatKineticEnergy());
 }
 

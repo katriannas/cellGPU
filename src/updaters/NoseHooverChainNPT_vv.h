@@ -22,8 +22,9 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
 
         //!The system that can compute forces, move degrees of freedom, etc.
         shared_ptr<Simple2DModel> State;
+        shared_ptr<VoronoiQuadraticEnergy> voronoi;
         //!set the internal State to the given model
-        virtual void set2DModel(shared_ptr<Simple2DModel> _model){State = _model;};
+        virtual void set2DModel(shared_ptr<Simple2DModel> _model);
         //!Also need VoronoiQuadraticEnergy for computeEnergy, getSigmaXX, and getSigmaYY
         //shared_ptr<VoronoiQuadraticEnergy> voronoiModel;
         //virtual void setVoronoiQuadraticEnergy(shared_ptr<VoronoiQuadraticEnergy> _vqe){voronoiModel = _vqe;};
@@ -76,6 +77,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         void rescaleBoxAndPositions(double delta_epsilon);
         void rescaleVelocitiesBarostat(double delta_epsilon);
         void rescaleThermoVelocities();
+        void setRectangularUnitCell(double Lx, double Ly, double delta_eps);
 
         //!The targeted temperature
         double Temperature;
