@@ -388,8 +388,8 @@ class Simple2DCell : public Simple2DModel
         double reportMeanP();
 
         // virtual functions for interfacing with a Simulation
-        virtual void setCPU(bool a) = 0;
-        virtual void setv0Dr(double a, double b) = 0;
+        virtual void setCPU(bool a){};
+        virtual void setv0Dr(double a, double b){};
     };
 
 typedef shared_ptr<Simple2DCell> ForcePtr;

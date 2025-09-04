@@ -52,6 +52,14 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
     setT(1.0);
     };
 
+//Set pointer to refer to voronoiModel
+
+void NoseHooverChainNPT::set2DModel(shared_ptr<Simple2DModel> State)
+            {
+            =_model;
+            activeModel = dynamic_pointer_cast<voronoiModel>(model);
+        }
+
 /*!
 Set the target temperature to the specified value.
 A careful reading of the "Non-Hamiltonian molecular dynamics: Generalizing Hamiltonian phase
