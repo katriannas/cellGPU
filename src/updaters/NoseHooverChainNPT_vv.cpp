@@ -146,10 +146,10 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     {
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    delta_eps = epsilon - epsilon_old; //Change in position
+    delta_eps = epsilon / epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        setRectangularUnitCell(Lx, Ly, delta_eps);
+        voronoi->setRectangularUnitCell(Lx * delta_eps, Ly * delta_eps);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -161,10 +161,12 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     {
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    delta_eps = epsilon - epsilon_old; //Change in position
+    delta_eps = epsilon / epsilon_old; //Change in position
     if (delta_eps != 0.0)
         {
-        setRectangularUnitCell(Lx, Ly, delta_eps);
+        Lx = Lx * delta_eps;
+        Ly = Ly * delta_eps;
+        voronoi->setRectangularUnitCell(Lx, Ly);
         rescaleVelocitiesBarostat(delta_eps);
         }
     }
@@ -177,18 +179,6 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     }
 
 //Barostat-related functions
-
-void NoseHooverChainNPT::setRectangularUnitCell(double Lx, double Ly, double delta_eps)
-{
-    Lx = Lx * delta_eps;
-    Ly = Ly * delta_eps;
-    ArrayHandle<double2> h_p(voronoi->cellPositions,access_location::host,access_mode::readwrite);
-    for (int ii = 0; ii < Ndof; ++ii)
-        {
-        h_p.data[ii].x = h_p.data[ii].x*Lx;
-        h_p.data[ii].y = h_p.data[ii].y*Ly;
-        }; 
-}
 
 double NoseHooverChainNPT::barostatKineticEnergy()
     {
@@ -241,7 +231,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     p_epsilon += deltaT2 * V * (P_inst - P_target);
     double epsilon_dot = p_epsilon / W;
     epsilon += deltaT2 * epsilon_dot;
-    double delta_eps = epsilon - epsilon_old;
+    double delta_eps = epsilon / epsilon_old; //scaling factor
     }
 
 void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_eps)
