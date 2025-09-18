@@ -11,7 +11,7 @@ extern double getSigmaYY();
 Initialize everything, by default setting the target temperature to unity.
 Note that in the current set up the thermostate masses are automatically set by the target temperature, assuming \tau = 1
 */
-NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
+NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     {
     //Initialise barostat variables
     epsilon = 0.0;
@@ -20,8 +20,8 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P)
     P_target = P;
     P_inst = 0.0;
     V = 1; //start with a unit cell
-    Lx = 1;
-    Ly = 1;
+    Lx = guessBox(N, P_target, T);
+    Ly = guessBox(N, P_target, T);
     d = 2; //dimensionality
 
     Timestep = 0;
@@ -77,6 +77,12 @@ void NoseHooverChainNPT::setT(double T)
     ArrayHandle<double> kes(kineticEnergyScaleFactor,access_location::host,access_mode::overwrite);
     kes.data[0] = h_bv.data[0].w;
     kes.data[1] = 1.0;
+    };
+
+double NoseHooverChainNPT::guessBox(int N, double P_target, double T)
+    {
+    double areaGuess = (double)N / (P_target / T);
+    return sqrt(areaGuess);
     };
 
 /*!

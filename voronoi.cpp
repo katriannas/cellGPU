@@ -109,7 +109,7 @@ int main(int argc, char*argv[])
     //cout << "initializing a system of " << numpts << " cells at temperature " << T << endl;
     shared_ptr<NoseHooverChainNVT> nvt = make_shared<NoseHooverChainNVT>(numpts,Nchain,initializeGPU);
     //!    } else {
-    shared_ptr<NoseHooverChainNPT> npt = make_shared<NoseHooverChainNPT>(numpts,Nchain, P);
+    shared_ptr<NoseHooverChainNPT> npt = make_shared<NoseHooverChainNPT>(numpts,Nchain, P, T);
     cout << "initializing a system of " << numpts << " cells at temperature " << T << "and pressure" << P << endl;
     //!    }
 
