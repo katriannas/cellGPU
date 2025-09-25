@@ -149,33 +149,43 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     }
 
     //Barostat half-step + rescale
-    {
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    delta_eps = epsilon / epsilon_old; //Change in position
-    if (delta_eps != 0.0)
+    if (epsilon_old != 0.0)
+        delta_epsilon = epsilon - epsilon_old;
+    else
+        delta_epsilon = epsilon;
+    if (delta_epsilon != 0.0)
         {
-        voronoi->setRectangularUnitCell(Lx * delta_eps, Ly * delta_eps);
-        rescaleVelocitiesBarostat(delta_eps);
+        double factor = exp(static_cast<double>(d) * delta_epsilon); //length scale factor
+        Lx *= factor;
+        Ly *= factor;
+        V = Lx * Ly; //keep V consistent
+        voronoi->setRectangularUnitCell(Lx, Ly);
+        rescaleVelocitiesBarostat(delta_epsilon);
         }
-    }
+
 
     //Halfway mark - propagate positions and velocities
     propagatePositionsVelocities();
 
     //Barostat half-step + rescale
-    {
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    delta_eps = epsilon / epsilon_old; //Change in position
-    if (delta_eps != 0.0)
+    if (epsilon_old != 0.0)
+        delta_epsilon = epsilon - epsilon_old;
+    else
+        delta_epsilon = epsilon;
+    if (delta_epsilon != 0.0)
         {
-        Lx = Lx * delta_eps;
-        Ly = Ly * delta_eps;
+        double factor = exp(static_cast<double>(d) * delta_epsilon); // length scale factor
+        Lx *= factor;
+        Ly *= factor;
+        V = Lx * Ly; // keep V consistent
         voronoi->setRectangularUnitCell(Lx, Ly);
-        rescaleVelocitiesBarostat(delta_eps);
+        // use the correct velocity scaling below (use delta_epsilon, not ratio)
+        rescaleVelocitiesBarostat(delta_epsilon);
         }
-    }
 
     //Thermostat chain half-step + thermostat velocity rescale
     {
@@ -191,20 +201,9 @@ double NoseHooverChainNPT::barostatKineticEnergy()
     return 0.5 * p_epsilon * p_epsilon / W;
     }
 
-//! void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
-//! {
-//!    computeInstantaneousPressure();
-//!    double deltaT2 = deltaT * 0.5;
-//!    const int d = 2;
-//!    V = V * exp(static_cast<double>(d) * epsilon);
-//!    p_epsilon += deltaT2 * V * (P_inst - P_target);
-//!    double epsilon_dot = p_epsilon / W;
-//!    epsilon += deltaT2 * epsilon_dot;
-//!}
-
 void NoseHooverChainNPT::computeInstantaneousPressure()
     {
-    //P_inst = 0.5*(SigmaXX + SigmaYY) + K / V 
+    // compute kinetic energy
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
     ArrayHandle<double>   h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
 
@@ -216,7 +215,6 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
         K += 0.5 * mi * v2;
         }
 
-    V = V * exp(static_cast<double>(d) * epsilon);
 
     double SigmaXX = voronoi->getSigmaXX();
     double SigmaYY = voronoi->getSigmaYY();
@@ -230,20 +228,19 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     //p_epsilon += 0.5*dt * V * (P_inst - P_target)
     //epsilon    += 0.5*dt * (p_epsilon / W)
     computeInstantaneousPressure();
-    double deltaT2 = deltaT * 0.5;
-    V = V * exp(static_cast<double>(d) * epsilon);
-    Lx = Lx * exp(static_cast<double>(d) * epsilon);
-    Ly = Ly * exp(static_cast<double>(d) * epsilon);
-    p_epsilon += deltaT2 * V * (P_inst - P_target);
-    double epsilon_dot = p_epsilon / W;
-    epsilon += deltaT2 * epsilon_dot;
-    double delta_eps = epsilon / epsilon_old; //scaling factor
-    }
 
-void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_eps)
+    double deltaT2 = deltaT * 0.5;
+    p_epsilon += deltaT2 * V * (P_inst - P_target);
+
+    double epsilon_dot = p_epsilon / W; 
+    epsilon += deltaT2 * epsilon_dot;
+
+   }
+
+void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
     {
-    //Velocities scale by exp(-d*delta_eps/2)
-    double vscale = exp(-0.5 * delta_eps * d);
+    //Velocities scale by exp(-d * delta_epsilon / 2)
+    double vscale = exp(-1 * delta_epsilon);
     ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = vscale * h_v.data[ii];
