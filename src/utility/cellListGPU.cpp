@@ -106,9 +106,9 @@ void cellListGPU::setGridSize(double a)
 
     double b11,b12,b21,b22;
     Box->getBoxDims(b11,b12,b21,b22);
-    xsize = std::max(1, (int)floor(b11/a));
+    xsize = (int)floor(b11/a);
     if(xsize%2==1) xsize +=1;
-    ysize = std::max(1, (int)floor(b22/a));
+    ysize = (int)floor(b22/a);
     if(ysize%2==1) ysize +=1;
 
     boxsize = b11/xsize;

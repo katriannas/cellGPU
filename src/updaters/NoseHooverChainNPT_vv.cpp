@@ -16,12 +16,12 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     //Initialise barostat variables
     epsilon = 0.0;
     p_epsilon = 0.0;
-    W = 1.0;
+    W = 10.0;
     P_target = P;
     P_inst = 0.0;
     V = 1; //start with a unit cell
-    Lx = guessBox(N, P_target, T);
-    Ly = guessBox(N, P_target, T);
+    Lx = sqrt(N);
+    Ly = sqrt(N);
     d = 2; //dimensionality
 
     Timestep = 0;
