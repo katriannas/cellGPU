@@ -16,10 +16,9 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     //Initialise barostat variables
     epsilon = 0.0;
     p_epsilon = 0.0;
-    W = 10.0;
     P_target = P;
     P_inst = 0.0;
-    V = 1; //start with a unit cell
+    V = N; //start with a unit cell
     Lx = sqrt(N);
     Ly = sqrt(N);
     d = 2; //dimensionality
@@ -50,6 +49,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         };
     kineticEnergyScaleFactor.resize(2);
     setT(1.0);
+    W = N * T;
     };
 
 //Set pointer to refer to voronoiModel
@@ -151,10 +151,17 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     //Barostat half-step + rescale
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
+    fprintf(stderr,
+        "BARO_STEP1 before scale: eps_old=%g eps=%g p_eps=%g Lx=%g Ly=%g V=%g\n",
+        epsilon_old, epsilon, p_epsilon, Lx, Ly, V);
     if (epsilon_old != 0.0)
         delta_epsilon = epsilon - epsilon_old;
     else
         delta_epsilon = epsilon;
+    fprintf(stderr,
+        "BARO_STEP1 applying scale: delta_epsilon=%g factor=%g -> new_Lx=%g new_Ly=%g\n",
+        delta_epsilon, /*factor*/ exp(static_cast<double>(d)*delta_epsilon), Lx*exp(static_cast<double>(d)*delta_epsilon),
+        Ly*exp(static_cast<double>(d)*delta_epsilon));
     if (delta_epsilon != 0.0)
         {
         double factor = exp(static_cast<double>(d) * delta_epsilon); //length scale factor
