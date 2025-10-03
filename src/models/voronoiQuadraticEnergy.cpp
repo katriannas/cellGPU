@@ -1373,6 +1373,13 @@ double area = b1*b4;
 return answer/area;    
 }
 
+double VoronoiQuadraticEnergy::getArea()
+{
+double b1, b2, b3, b4;
+Box->getBoxDims(b1,b2,b3,b4);
+double area = b1 * b4;
+return area;
+}
 
 double VoronoiQuadraticEnergy::getd2Edgammadgamma(vector<double> &d2Eidgammadgamma)
 {
