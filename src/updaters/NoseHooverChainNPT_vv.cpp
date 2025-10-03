@@ -18,9 +18,9 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     p_epsilon = 0.0;
     P_target = P;
     P_inst = 0.0;
-    V = N; //start with a unit cell
-    Lx = sqrt(N);
-    Ly = sqrt(N);
+    V = 10 * N;
+    Lx = sqrt(V);
+    Ly = sqrt(V);
     d = 2; //dimensionality
 
     Timestep = 0;
@@ -49,7 +49,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         };
     kineticEnergyScaleFactor.resize(2);
     setT(1.0);
-    W = N * T;
+    W = N * T * 10 ;
     };
 
 //Set pointer to refer to voronoiModel
@@ -152,15 +152,15 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
     fprintf(stderr,
-        "BARO_STEP1 before scale: eps_old=%g eps=%g p_eps=%g Lx=%g Ly=%g V=%g\n",
-        epsilon_old, epsilon, p_epsilon, Lx, Ly, V);
+        "BARO_STEP1 before scale: P_inst=%g eps_old=%g eps=%g p_eps=%g Lx=%g Ly=%g V=%g\n",
+        P_inst, epsilon_old, epsilon, p_epsilon, Lx, Ly, V);
     if (epsilon_old != 0.0)
         delta_epsilon = epsilon - epsilon_old;
     else
         delta_epsilon = epsilon;
     fprintf(stderr,
-        "BARO_STEP1 applying scale: delta_epsilon=%g factor=%g -> new_Lx=%g new_Ly=%g\n",
-        delta_epsilon, /*factor*/ exp(static_cast<double>(d)*delta_epsilon), Lx*exp(static_cast<double>(d)*delta_epsilon),
+        "BARO_STEP1 applying scale: P_inst=%g delta_epsilon=%g factor=%g -> new_Lx=%g new_Ly=%g\n",
+        P_inst, delta_epsilon, /*factor*/ exp(static_cast<double>(d)*delta_epsilon), Lx*exp(static_cast<double>(d)*delta_epsilon),
         Ly*exp(static_cast<double>(d)*delta_epsilon));
     if (delta_epsilon != 0.0)
         {
@@ -248,7 +248,7 @@ void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
     {
     //Velocities scale by exp(-d * delta_epsilon / 2)
     double vscale = exp(-1 * delta_epsilon);
-    ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::readwrite);
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = vscale * h_v.data[ii];
     }
@@ -256,7 +256,7 @@ void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
 void NoseHooverChainNPT::rescaleThermoVelocities()
     {
     ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::read);
-    ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::readwrite);
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = h_kes.data[1]*h_v.data[ii];
     }
@@ -287,19 +287,19 @@ void NoseHooverChainNPT::propagatePositionsVelocities()
     double deltaT2 = 0.5*deltaT;
     {//scope for array handles in the first half of the time step
     ArrayHandle<double2> h_disp(displacements,access_location::host,access_mode::overwrite);
-    ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::read);
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
     for (int ii = 0; ii < Ndof; ++ii)
         h_disp.data[ii] = deltaT2*h_v.data[ii];
     };
-    State->moveDegreesOfFreedom(displacements);
-    State->enforceTopology();
-    State->computeForces();
+    voronoi->moveDegreesOfFreedom(displacements);
+    voronoi->enforceTopology();
+    voronoi->computeForces();
 
     {//array handle scope for the second half of the time step
     ArrayHandle<double2> h_disp(displacements,access_location::host,access_mode::overwrite);
-    ArrayHandle<double2> h_f(State->returnForces(),access_location::host,access_mode::read);
-    ArrayHandle<double2> h_v(State->returnVelocities(),access_location::host,access_mode::readwrite);
-    ArrayHandle<double> h_m(State->returnMasses(),access_location::host,access_mode::read);
+    ArrayHandle<double2> h_f(voronoi->returnForces(),access_location::host,access_mode::read);
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
+    ArrayHandle<double> h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
     for (int ii = 0; ii < Ndof; ++ii)
         {
         h_v.data[ii] = h_v.data[ii] + (deltaT/h_m.data[ii])*h_f.data[ii];
@@ -307,7 +307,7 @@ void NoseHooverChainNPT::propagatePositionsVelocities()
         h_kes.data[0] += 0.5*h_m.data[ii]*dot(h_v.data[ii],h_v.data[ii]);
         }
     };
-    State->moveDegreesOfFreedom(displacements);
+    voronoi->moveDegreesOfFreedom(displacements);
     };
 
 /*!
