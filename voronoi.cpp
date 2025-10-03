@@ -160,9 +160,11 @@ int main(int argc, char*argv[])
         double potentialEnergy = voronoiModel->computeEnergy();
         double kineticEnergy = voronoiModel-> computeKineticEnergy();
         double totalEnergy = potentialEnergy + kineticEnergy;
+        auto boxCorners = voronoiModel->getBoxDims();
+        double instVolume = abs(boxCorners.bxx - boxCorners.bxy) * abs(boxCorners.bxx - boxCorners.byx);
         double sigmaXX = voronoiModel->getSigmaXX();
         double sigmaYY = voronoiModel->getSigmaYY();
-        double totalPressure = (sigmaXX + sigmaYY) / 2;
+        double totalPressure = (-0.5 * (sigmaXX + sigmaYY)) + (kineticEnergy / instVolume);
         
         outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
 

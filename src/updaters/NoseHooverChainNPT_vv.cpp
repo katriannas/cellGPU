@@ -18,7 +18,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     p_epsilon = 0.0;
     P_target = P;
     P_inst = 0.0;
-    V = 10 * N;
+    V = N;
     Lx = sqrt(V);
     Ly = sqrt(V);
     d = 2; //dimensionality
@@ -49,7 +49,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         };
     kineticEnergyScaleFactor.resize(2);
     setT(1.0);
-    W = N * T * 10 ;
+    W = N * T;
     };
 
 //Set pointer to refer to voronoiModel
@@ -151,17 +151,17 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     //Barostat half-step + rescale
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    fprintf(stderr,
-        "BARO_STEP1 before scale: P_inst=%g eps_old=%g eps=%g p_eps=%g Lx=%g Ly=%g V=%g\n",
-        P_inst, epsilon_old, epsilon, p_epsilon, Lx, Ly, V);
+    //fprintf(stderr,
+    //    "BARO_STEP1 before scale: P_inst=%g eps_old=%g eps=%g p_eps=%g Lx=%g Ly=%g V=%g\n",
+    //    P_inst, epsilon_old, epsilon, p_epsilon, Lx, Ly, V);
     if (epsilon_old != 0.0)
         delta_epsilon = epsilon - epsilon_old;
     else
         delta_epsilon = epsilon;
-    fprintf(stderr,
-        "BARO_STEP1 applying scale: P_inst=%g delta_epsilon=%g factor=%g -> new_Lx=%g new_Ly=%g\n",
-        P_inst, delta_epsilon, /*factor*/ exp(static_cast<double>(d)*delta_epsilon), Lx*exp(static_cast<double>(d)*delta_epsilon),
-        Ly*exp(static_cast<double>(d)*delta_epsilon));
+    //fprintf(stderr,
+    //    "BARO_STEP1 applying scale: P_inst=%g delta_epsilon=%g factor=%g -> new_Lx=%g new_Ly=%g\n",
+    //    P_inst, delta_epsilon, /*factor*/ exp(static_cast<double>(d)*delta_epsilon), Lx*exp(static_cast<double>(d)*delta_epsilon),
+    //    Ly*exp(static_cast<double>(d)*delta_epsilon));
     if (delta_epsilon != 0.0)
         {
         double factor = exp(delta_epsilon); //length scale factor
@@ -239,7 +239,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     double deltaT2 = deltaT * 0.5;
     p_epsilon += deltaT2 * V * (P_inst - P_target);
 
-    double epsilon_dot = p_epsilon / W; 
+    double epsilon_dot = p_epsilon / (2 * W); 
     epsilon += deltaT2 * epsilon_dot;
 
    }
