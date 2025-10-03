@@ -164,7 +164,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
         Ly*exp(static_cast<double>(d)*delta_epsilon));
     if (delta_epsilon != 0.0)
         {
-        double factor = exp(static_cast<double>(d) * delta_epsilon); //length scale factor
+        double factor = exp(delta_epsilon); //length scale factor
         Lx *= factor;
         Ly *= factor;
         V = Lx * Ly; //keep V consistent
@@ -185,7 +185,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
         delta_epsilon = epsilon;
     if (delta_epsilon != 0.0)
         {
-        double factor = exp(static_cast<double>(d) * delta_epsilon); // length scale factor
+        double factor = exp(delta_epsilon); // length scale factor
         Lx *= factor;
         Ly *= factor;
         V = Lx * Ly; // keep V consistent
@@ -205,7 +205,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
 
 double NoseHooverChainNPT::barostatKineticEnergy()
     {
-    return 0.5 * p_epsilon * p_epsilon / W;
+    return 0.5 * ((p_epsilon * p_epsilon) / W);
     }
 
 void NoseHooverChainNPT::computeInstantaneousPressure()
@@ -225,7 +225,7 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
 
     double SigmaXX = voronoi->getSigmaXX();
     double SigmaYY = voronoi->getSigmaYY();
-    double virial2D = 0.5 * (SigmaXX + SigmaYY);
+    double virial2D = -0.5 * (SigmaXX + SigmaYY);
 
     P_inst = virial2D + (K / V);
     }
