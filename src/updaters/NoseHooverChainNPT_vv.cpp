@@ -49,7 +49,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         };
     kineticEnergyScaleFactor.resize(2);
     setT(1.0);
-    W = N * T;
+    W = (N + d) * T * 10;
     };
 
 //Set pointer to refer to voronoiModel
