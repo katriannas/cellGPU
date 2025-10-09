@@ -82,7 +82,7 @@ int main(int argc, char*argv[])
     std::ofstream outfile(filename.str());
 
     clock_t t1,t2; //clocks for timing information
-    bool reproducible = true; // if you want random numbers with a more random seed each run, set this to false
+    bool reproducible = false; // if you want random numbers with a more random seed each run, set this to false
     //check to see if we should run on a GPU
     // bool initializeGPU = true;
     // bool gpu = chooseGPU(USE_GPU);

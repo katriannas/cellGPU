@@ -49,7 +49,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         };
     kineticEnergyScaleFactor.resize(2);
     setT(1.0);
-    W = (N + d) * T * 10;
+    W = (( d * N) + d) * T * 100;
     };
 
 //Set pointer to refer to voronoiModel
@@ -77,12 +77,6 @@ void NoseHooverChainNPT::setT(double T)
     ArrayHandle<double> kes(kineticEnergyScaleFactor,access_location::host,access_mode::overwrite);
     kes.data[0] = h_bv.data[0].w;
     kes.data[1] = 1.0;
-    };
-
-double NoseHooverChainNPT::guessBox(int N, double P_target, double T)
-    {
-    double areaGuess = (double)N / (P_target / T);
-    return sqrt(areaGuess);
     };
 
 /*!

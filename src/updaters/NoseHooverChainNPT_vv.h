@@ -40,7 +40,6 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         double getT(){return Temperature;};
         //!Set temperature, T, and also the bath masses!
         void setT(double T);
-	    double guessBox(int N, double P_target, double T);
 
         //!Helper structure for GPU branch. A two-component GPU array that contains the total KE and the velocity scale factor
         GPUArray<double> kineticEnergyScaleFactor;
@@ -53,7 +52,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
 
         virtual ~NoseHooverChainNPT();
 
-    protected:
+        //!Barostat variables moved to public so can be accessed by voronoi.cpp
         //!Barostat position
         double epsilon;
         //!Barostat momentum and mass
@@ -68,7 +67,8 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         double V;
         double Lx;
         double Ly;
-	double areaGuess;
+
+    protected:
         int d;
 
         //Barostat helpers
