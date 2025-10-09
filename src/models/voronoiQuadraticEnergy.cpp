@@ -1381,6 +1381,23 @@ double area = b1 * b4;
 return area;
 }
 
+double VoronoiQuadraticEnergy::getLx()
+{
+double b1, b2, b3, b4;
+Box-> getBoxDims(b1, b2, b3, b4);
+double Lx = abs(b2 - b1);
+return Lx;
+}
+
+double VoronoiQuadraticEnergy::getLy()
+{
+double b1, b2, b3, b4;
+Box-> getBoxDims(b1, b2, b3, b4);
+double Ly = abs(b1 - b3);
+return Ly;
+}
+
+
 double VoronoiQuadraticEnergy::getd2Edgammadgamma(vector<double> &d2Eidgammadgamma)
 {
 double answer = 0.0;

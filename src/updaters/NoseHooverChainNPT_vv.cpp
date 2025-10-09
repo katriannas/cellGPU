@@ -18,9 +18,9 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     p_epsilon = 0.0;
     P_target = P;
     P_inst = 0.0;
-    V = N;
-    Lx = sqrt(V);
-    Ly = sqrt(V);
+    V = voronoi->getArea();
+    Lx = voronoi->getLx();
+    Ly = voronoi->getLy();
     d = 2; //dimensionality
 
     Timestep = 0;
@@ -65,6 +65,7 @@ Set the target temperature to the specified value.
 A careful reading of the "Non-Hamiltonian molecular dynamics: Generalizing Hamiltonian phase
 space principles to non-Hamiltonian systems" paper (jcp 2001) suggests the correct setting of the first thermostat chain mass to guarantee conservation of energy in the context of a total momentum=0 setting
 */
+
 void NoseHooverChainNPT::setT(double T)
     {
     Temperature = T;
@@ -161,8 +162,8 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
         double factor = exp(delta_epsilon); //length scale factor
         Lx *= factor;
         Ly *= factor;
-        V = Lx * Ly; //keep V consistent
         voronoi->setRectangularUnitCell(Lx, Ly);
+        V = voronoi->getArea();
         rescaleVelocitiesBarostat(delta_epsilon);
         }
 
@@ -182,7 +183,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
         double factor = exp(delta_epsilon); // length scale factor
         Lx *= factor;
         Ly *= factor;
-        V = Lx * Ly; // keep V consistent
+        V = voronoi->getArea(); // keep V consistent
         voronoi->setRectangularUnitCell(Lx, Ly);
         // use the correct velocity scaling below (use delta_epsilon, not ratio)
         rescaleVelocitiesBarostat(delta_epsilon);

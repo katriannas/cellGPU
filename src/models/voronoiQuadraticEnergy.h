@@ -97,6 +97,8 @@ class VoronoiQuadraticEnergy : public voronoiModelBase
         virtual double getd2Edgammadgamma(vector<double> &d2Eidgammadgamma);
         
         virtual double getArea();
+        virtual double getLx();
+        virtual double getLy();
 
         //!calculate the current d2Edgammadgamma for each cell and return the global d2Edgammadgamma
         //! Using the method to reproduce 2018 no jamming transition paper
