@@ -4,6 +4,7 @@
 #include "simpleEquationOfMotion.h"
 #include "voronoiQuadraticEnergy.h"
 #include "Simple2DCell.h"
+#include <ostream>
 
 /*! \file NoseHooverChainNPT.h */
 //! Implements NPT dynamics according to the Nose-Hoover equations of motion with a chain of thermostats
@@ -48,7 +49,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
 
         //!Report the current status of the bath
         void reportBathData();
-        void reportBarostatData();
+        void reportBarostatData(std::ostream& out_stream);
 
         virtual ~NoseHooverChainNPT();
 

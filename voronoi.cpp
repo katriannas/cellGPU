@@ -82,6 +82,10 @@ int main(int argc, char*argv[])
     filename << "energy_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".csv";
     std::ofstream outfile(filename.str());
 
+    std::ostringstream baro_filename;
+    baro_filename << "barostat_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".dat";
+    std::ofstream baro_outfile(baro_filename.str());
+
     clock_t t1,t2; //clocks for timing information
     bool reproducible = false; // if you want random numbers with a more random seed each run, set this to false
     //check to see if we should run on a GPU
@@ -165,8 +169,10 @@ int main(int argc, char*argv[])
         double sigmaXX = voronoiModel->getSigmaXX();
         double sigmaYY = voronoiModel->getSigmaYY();
         double totalPressure = (-0.5 * (sigmaXX + sigmaYY)) + (kineticEnergy / instArea);
+        npt->reportBarostatData(baro_outfile);
         
         outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
+        baro_outfile << "epsilon\tp_epsilon\tW\tP_target\tP_inst\tV\tU\tK\tK_baro\n";
 
         //if (ii == lewriter.nextFrameToSave)
         //    {

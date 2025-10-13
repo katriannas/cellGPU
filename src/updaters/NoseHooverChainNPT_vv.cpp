@@ -3,6 +3,7 @@
 #include "NoseHooverChainNPT_vv.h"
 #include "voronoiQuadraticEnergy.h"
 #include "utilities.cuh"
+#include <ostream>
 
 /* extern double getSigmaXX();
 extern double getSigmaYY();
@@ -236,7 +237,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     double deltaT2 = deltaT * 0.5;
     p_epsilon += deltaT2 * V * (P_inst - P_target);
 
-    double epsilon_dot = p_epsilon / (2 * W); 
+    double epsilon_dot = p_epsilon / ( W); 
     epsilon += deltaT2 * epsilon_dot;
 
    }
