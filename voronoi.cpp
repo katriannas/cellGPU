@@ -40,8 +40,9 @@ int main(int argc, char*argv[])
     double a0 = 1.0;  // the preferred area
     double T = 0.1;  // the temperature
     double P = 0.1; //the pressure
-    double Lx = 1; //initialise unit cell
-    double Ly = 1; //initialise unit cell
+    double V = numpts;
+    double Lx = sqrt(V);
+    double Ly = sqrt(V);
     double pflag = 0; //whether or not to run a barostat - any value other than 0 will run a barostat
     int Nchain = 4;     //The number of thermostats to chain together
     
@@ -126,7 +127,7 @@ int main(int argc, char*argv[])
 
     //combine the equation of motion and the cell configuration in a "Simulation"
     SimulationPtr sim = make_shared<Simulation>();
-    sim->setConfiguration(voronoiModel);
+    sim->setConfiguration(voronoiModel); 
     sim->addUpdater(npt,voronoiModel);
     //set the time step size
     sim->setIntegrationTimestep(dt);

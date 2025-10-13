@@ -18,13 +18,12 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     p_epsilon = 0.0;
     P_target = P;
     P_inst = 0.0;
-    V = voronoi->getArea();
-    Lx = voronoi->getLx();
-    Ly = voronoi->getLy();
     d = 2; //dimensionality
-
     Timestep = 0;
     deltaT=0.01;
+    V = N;
+    Lx = sqrt(V);
+    Ly = sqrt(V);
     GPUcompute=false;
     if(!GPUcompute)
         {
@@ -58,6 +57,9 @@ void NoseHooverChainNPT::set2DModel(shared_ptr<Simple2DModel> model)
             {
             State = model;
             voronoi = std::dynamic_pointer_cast<VoronoiQuadraticEnergy>(model);
+            V = voronoi->getArea();
+            Lx = voronoi->getLx();
+            Ly = voronoi->getLy();
         }
 
 /*!
