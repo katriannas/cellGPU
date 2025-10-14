@@ -259,19 +259,19 @@ void NoseHooverChainNPT::rescaleThermoVelocities()
         h_v.data[ii] = h_kes.data[1]*h_v.data[ii];
     }
 
-void NoseHooverChainNPT::reportBarostatData()
+void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
 {
     computeInstantaneousPressure();
-    printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",
-           epsilon,
-           p_epsilon,
-           W,
-           P_target,
-           P_inst,
-           V,
-           voronoi->computeEnergy(),
-           voronoi->computeKineticEnergy(),
-           barostatKineticEnergy());
+    out_stream << epsilon << "\t"
+               << p_epsilon << "\t"
+               << W << "\t"
+               << P_target << "\t"
+               << P_inst << "\t"
+               << V << "\t"
+               << voronoi->computeEnergy() << "\t"
+               << voronoi->computeKineticEnergy() << "\t"
+               << barostatKineticEnergy()
+               << std::endl;
 }
 
 /*!

@@ -169,10 +169,9 @@ int main(int argc, char*argv[])
         double sigmaXX = voronoiModel->getSigmaXX();
         double sigmaYY = voronoiModel->getSigmaYY();
         double totalPressure = (-0.5 * (sigmaXX + sigmaYY)) + (kineticEnergy / instArea);
+
         npt->reportBarostatData(baro_outfile);
-        
         outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
-        baro_outfile << "epsilon\tp_epsilon\tW\tP_target\tP_inst\tV\tU\tK\tK_baro\n";
 
         //if (ii == lewriter.nextFrameToSave)
         //    {
@@ -183,7 +182,6 @@ int main(int argc, char*argv[])
         };
 //    cudaProfilerStop();
     t2=clock();
-    npt->reportBarostatData();
     printf("final state:\t\t energy %f \t msd %f \t overlap %f\n",voronoiModel->computeEnergy(),dynFeat.computeMSD(voronoiModel->returnPositions()),dynFeat.computeOverlapFunction(voronoiModel->returnPositions()));
     double steptime = (t2-t1)/(double)CLOCKS_PER_SEC/tSteps;
     cout << "timestep ~ " << steptime << " per frame; " << endl;
