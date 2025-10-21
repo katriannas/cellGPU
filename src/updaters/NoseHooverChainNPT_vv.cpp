@@ -142,8 +142,13 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     
     //Thermostat half-step + rescale
     {
+ // Use std::endl to add a newline and flush the buffer
+    double K_before = voronoi->computeKineticEnergy();
+    fprintf(stderr, "step %d BEFORE propagateChain: K=%g", Timestep, K_after)
     propagateChain();
     rescaleThermoVelocities();
+    double K_after = voronoi->computeKineticEnergy();
+    fprintf(stderr, "step %d AFTER  propagateChain: K=%g dK=%g\n", Timestep, K_after, K_after-K_before);
     }
 
     //Barostat half-step + rescale

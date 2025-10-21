@@ -83,7 +83,7 @@ int main(int argc, char*argv[])
     std::ofstream outfile(filename.str());
 
     std::ostringstream baro_filename;
-    baro_filename << "barostat_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".dat";
+    baro_filename << "barostat_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".csv";
     std::ofstream baro_outfile(baro_filename.str());
 
     clock_t t1,t2; //clocks for timing information
