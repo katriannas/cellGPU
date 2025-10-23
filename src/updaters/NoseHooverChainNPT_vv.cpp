@@ -250,10 +250,13 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
 void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
     {
     //Velocities scale by exp(-d * delta_epsilon / 2)
-    double vscale = exp(-1 * delta_epsilon);
+    //Change: added velocity rescaling to the array that handles the kinetic energy for propagateChain
+    double vscale = exp(-d * delta_epsilon  * 0.5);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = vscale * h_v.data[ii];
+    ArrayHandle<double> h_kes(kineticEnergyScaleFactor, access_location::host, access_mode::readwrite);
+    h_kes.data[0] = h_kes.data[0] * vscale * vscale;
     }
 
 void NoseHooverChainNPT::rescaleThermoVelocities()
