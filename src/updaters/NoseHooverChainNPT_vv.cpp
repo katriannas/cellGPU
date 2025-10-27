@@ -126,6 +126,7 @@ void NoseHooverChainNPT::reportBathData()
 The implementation here closely follows algorithms 30 - 32 in Frenkel & Smit, generalized to the
 case where the chain length is not necessarily always 2
 */
+//Barostat-related functions
 
 void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     {
@@ -139,35 +140,41 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     //Complete particle propagation
     //Barostat half-step
     //Thermostat chain half-step
-    
-    //Thermostat half-step + rescale
     {
- // Use std::endl to add a newline and flush the buffer
-    double K_before = voronoi->computeKineticEnergy();
-    fprintf(stderr, "step %d BEFORE propagateChain: K=%g", Timestep, K_after)
+    //Update KE from end of last step before feeding to thermostat updater
+    double K = 0.0;
+    {
+        ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
+        ArrayHandle<double>   h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
+        for (int ii = 0; ii < Ndof; ++ii)
+            {
+            double v2 = dot(h_v.data[ii], h_v.data[ii]);
+            double mi = h_m.data[ii];
+            K += 0.5 * mi * v2;
+            }
+    }
+    {
+        ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::readwrite);
+        h_kes.data[0] = K; //Particle KE only
+    }
+
+    //Thermostat half-step + rescale
     propagateChain();
     rescaleThermoVelocities();
-    double K_after = voronoi->computeKineticEnergy();
-    fprintf(stderr, "step %d AFTER  propagateChain: K=%g dK=%g\n", Timestep, K_after, K_after-K_before);
     }
 
     //Barostat half-step + rescale
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    //fprintf(stderr,
-    //    "BARO_STEP1 before scale: P_inst=%g eps_old=%g eps=%g p_eps=%g Lx=%g Ly=%g V=%g\n",
-    //    P_inst, epsilon_old, epsilon, p_epsilon, Lx, Ly, V);
+
     if (epsilon_old != 0.0)
         delta_epsilon = epsilon - epsilon_old;
     else
         delta_epsilon = epsilon;
-    //fprintf(stderr,
-    //    "BARO_STEP1 applying scale: P_inst=%g delta_epsilon=%g factor=%g -> new_Lx=%g new_Ly=%g\n",
-    //    P_inst, delta_epsilon, /*factor*/ exp(static_cast<double>(d)*delta_epsilon), Lx*exp(static_cast<double>(d)*delta_epsilon),
-    //    Ly*exp(static_cast<double>(d)*delta_epsilon));
+
     if (delta_epsilon != 0.0)
         {
-        double factor = exp(delta_epsilon); //length scale factor
+        double factor = exp(delta_epsilon);
         Lx *= factor;
         Ly *= factor;
         voronoi->setRectangularUnitCell(Lx, Ly);
@@ -175,11 +182,10 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
         rescaleVelocitiesBarostat(delta_epsilon);
         }
 
-
-    //Halfway mark - propagate positions and velocities
+    //Halfway mark - propagate positions and velocities (also recomputes particle KE)
     propagatePositionsVelocities();
 
-    //Barostat half-step + rescale
+    //Barostat half-step + rescale (second half)
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
     if (epsilon_old != 0.0)
@@ -188,23 +194,36 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
         delta_epsilon = epsilon;
     if (delta_epsilon != 0.0)
         {
-        double factor = exp(delta_epsilon); // length scale factor
+        double factor = exp(delta_epsilon);
         Lx *= factor;
         Ly *= factor;
-        V = voronoi->getArea(); // keep V consistent
+        V = voronoi->getArea();
         voronoi->setRectangularUnitCell(Lx, Ly);
-        // use the correct velocity scaling below (use delta_epsilon, not ratio)
         rescaleVelocitiesBarostat(delta_epsilon);
         }
 
     //Thermostat chain half-step + thermostat velocity rescale
     {
+    //Particle KE again (velocities have been updated)
+    double K = 0.0;
+    {
+        ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
+        ArrayHandle<double>   h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
+        for (int ii = 0; ii < Ndof; ++ii)
+            {
+            double v2 = dot(h_v.data[ii], h_v.data[ii]);
+            double mi = h_m.data[ii];
+            K += 0.5 * mi * v2;
+            }
+    }
+    {
+        ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::readwrite);
+        h_kes.data[0] = K;    }
+
     propagateChain();
     rescaleThermoVelocities();
     }
     }
-
-//Barostat-related functions
 
 double NoseHooverChainNPT::barostatKineticEnergy()
     {
@@ -250,22 +269,27 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
 void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
     {
     //Velocities scale by exp(-d * delta_epsilon / 2)
-    //Change: added velocity rescaling to the array that handles the kinetic energy for propagateChain
-    double vscale = exp(-d * delta_epsilon  * 0.5);
+    double vscale = exp(-d * delta_epsilon * 0.5);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = vscale * h_v.data[ii];
-    ArrayHandle<double> h_kes(kineticEnergyScaleFactor, access_location::host, access_mode::readwrite);
-    h_kes.data[0] = h_kes.data[0] * vscale * vscale;
+
+    ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::readwrite);
+    h_kes.data[0] = vscale * vscale * h_kes.data[0];
     }
 
 void NoseHooverChainNPT::rescaleThermoVelocities()
     {
-    ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::read);
+    ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::readwrite);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
+
+    double s = h_kes.data[1]; //scale factor computed by propagateChain()
     for (int ii = 0; ii < Ndof; ++ii)
-        h_v.data[ii] = h_kes.data[1]*h_v.data[ii];
+        h_v.data[ii] = s * h_v.data[ii];
+    //h_kes.data[0] stores particle KE only
+    h_kes.data[0] = s*s * h_kes.data[0];
     }
+
 
 void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
 {
@@ -286,11 +310,12 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
 The simple part of the algorithm actually updates the positions and velocities of the partices.
 This is the step in which a force calculation is required.
 */
+
 void NoseHooverChainNPT::propagatePositionsVelocities()
     {
-    ArrayHandle<double> h_kes(kineticEnergyScaleFactor);
-    h_kes.data[0] = 0.0;
+    //Removed direct zeroing of h_kes.data[0] at function start
     double deltaT2 = 0.5*deltaT;
+
     {//scope for array handles in the first half of the time step
     ArrayHandle<double2> h_disp(displacements,access_location::host,access_mode::overwrite);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
@@ -301,7 +326,9 @@ void NoseHooverChainNPT::propagatePositionsVelocities()
     voronoi->enforceTopology();
     voronoi->computeForces();
 
-    {//array handle scope for the second half of the time step
+    //array handle scope for the second half of the time step
+    double K_local = 0.0;
+    {
     ArrayHandle<double2> h_disp(displacements,access_location::host,access_mode::overwrite);
     ArrayHandle<double2> h_f(voronoi->returnForces(),access_location::host,access_mode::read);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
@@ -310,16 +337,25 @@ void NoseHooverChainNPT::propagatePositionsVelocities()
         {
         h_v.data[ii] = h_v.data[ii] + (deltaT/h_m.data[ii])*h_f.data[ii];
         h_disp.data[ii] = deltaT2*h_v.data[ii];
-        h_kes.data[0] += 0.5*h_m.data[ii]*dot(h_v.data[ii],h_v.data[ii]);
+        K_local += 0.5*h_m.data[ii]*dot(h_v.data[ii],h_v.data[ii]);
         }
     };
+
     voronoi->moveDegreesOfFreedom(displacements);
+
+    //write particle KE so subsequent thermostat/barostat calls see correct KE
+    {
+    ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::readwrite);
+    h_kes.data[0] = K_local;
+    }
     };
+
 
 /*!
 The simple part of the algorithm partially updates the chain positions and velocities. It should be
 called twice per time step
 */
+
 void NoseHooverChainNPT::propagateChain()
     {
     ArrayHandle<double> h_kes(kineticEnergyScaleFactor);
@@ -339,6 +375,9 @@ void NoseHooverChainNPT::propagateChain()
         Bath.data[ii].y += Bath.data[ii].z*dt4;
         Bath.data[ii].y *= ef;
         };
+
+    //Use particle KE from h_kes.data[0] and add barostat KE on-the-fly when computing G0.
+    //IMPORTANT: do NOT overwrite h_kes.data[0] here; we only read it.
     Bath.data[0].z = (2.0*(h_kes.data[0] + barostatKineticEnergy())/Bath.data[0].w - 1.0);
     double ef = exp(-dt8*Bath.data[1].y);
     Bath.data[0].y *= ef;
@@ -346,15 +385,11 @@ void NoseHooverChainNPT::propagateChain()
     Bath.data[0].y *= ef;
 
     //update bath positions (half timestep)
-    //update bath positions (half timestep)
     for (int ii = 0; ii < Nchain; ++ii)
         Bath.data[ii].x += dt2*Bath.data[ii].y;
 
-    //get the factor that will particle velocities
+    //get the factor that will scale particle velocities (store it but do not apply it here)
     h_kes.data[1] = exp(-dt2*Bath.data[0].y);
-    //and pre-emptively update the kinetic energy
-    h_kes.data[0] = h_kes.data[1]*h_kes.data[1]*h_kes.data[0];
-
     //finally, do the other quarter-timestep of the velocities and accelerations, from 0 to Nchain
     Bath.data[0].z = (2.0*(h_kes.data[0] + barostatKineticEnergy())/Bath.data[0].w - 1.0);
     ef = exp(-dt8*Bath.data[1].y);
@@ -364,13 +399,13 @@ void NoseHooverChainNPT::propagateChain()
     for (int ii = 1; ii < Nchain; ++ii)
         {
         Bath.data[ii].z = (Bath.data[ii-1].w*Bath.data[ii-1].y*Bath.data[ii-1].y-Temperature)/Bath.data[ii].w;
-        //the exponential factor is exp(-dt*v_{i+1}/2)
-        double ef = exp(-dt8*Bath.data[ii+1].y);
-        Bath.data[ii].y *= ef;
+        double ef2 = exp(-dt8*Bath.data[ii+1].y);
+        Bath.data[ii].y *= ef2;
         Bath.data[ii].y += Bath.data[ii].z*dt4;
-        Bath.data[ii].y *= ef;
+        Bath.data[ii].y *= ef2;
         };
     };
+
 /* void NoseHooverChainNPT::propagateChainGPU()
     {
     ArrayHandle<double> d_kes(kineticEnergyScaleFactor,access_location::device,access_mode::readwrite);
