@@ -81,6 +81,8 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         void rescaleVelocitiesBarostat(double delta_epsilon);
         void rescaleThermoVelocities();
         void setRectangularUnitCell(double Lx, double Ly, double delta_eps);
+        double total_ke;
+        double target_dof;
 
         //!The targeted temperature
         double Temperature;

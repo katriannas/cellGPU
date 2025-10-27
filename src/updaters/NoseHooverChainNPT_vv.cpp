@@ -368,7 +368,9 @@ void NoseHooverChainNPT::propagateChain()
     for (int ii = Nchain-1; ii > 0; --ii)
         {
         //update the acceleration: G = (Q_{i-1}*v_{i-1}^2 - T)/Q_i
-        Bath.data[ii].z = (Bath.data[ii-1].w*Bath.data[ii-1].y*Bath.data[ii-1].y-Temperature)/Bath.data[ii].w;
+        double total_ke = h_kes.data[0] + barostatKineticEnergy();
+        double target_dof = 2.0 * Ndof - 1.0; //(2N-2) particle DOFs + 1 barostat DOF
+        Bath.data[0].z = (2.0 * total_ke - target_dof * Temperature) / Bath.data[0].w;
         //the exponential factor is exp(-dt*v_{i+1}/2)
         double ef = exp(-dt8*Bath.data[ii+1].y);
         Bath.data[ii].y *= ef;
