@@ -286,10 +286,15 @@ void NoseHooverChainNPT::rescaleThermoVelocities()
     double s = h_kes.data[1]; //scale factor computed by propagateChain()
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = s * h_v.data[ii];
+    
+    // --- ADD THIS LINE ---
+    // Apply the thermostat scaling to the barostat momentum
+    p_epsilon *= s; 
+    // ---------------------
+
     //h_kes.data[0] stores particle KE only
     h_kes.data[0] = s*s * h_kes.data[0];
     }
-
 
 void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
 {
