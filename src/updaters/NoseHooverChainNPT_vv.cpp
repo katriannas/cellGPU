@@ -259,7 +259,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
     computeInstantaneousPressure();
 
     double deltaT2 = deltaT * 0.5;
-    p_epsilon += deltaT2 * V * (P_inst - P_target);
+    p_epsilon += deltaT2 * d * V * (P_inst - P_target);
 
     double epsilon_dot = p_epsilon / ( W); 
     epsilon += deltaT2 * epsilon_dot;
@@ -269,7 +269,7 @@ void NoseHooverChainNPT::updateBarostatHalfStep(double deltaT)
 void NoseHooverChainNPT::rescaleVelocitiesBarostat(double delta_epsilon)
     {
     //Velocities scale by exp(-d * delta_epsilon / 2)
-    double vscale = exp(-d * delta_epsilon * 0.5);
+    double vscale = exp(-delta_epsilon * 0.5);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = vscale * h_v.data[ii];
@@ -283,16 +283,12 @@ void NoseHooverChainNPT::rescaleThermoVelocities()
     ArrayHandle<double> h_kes(kineticEnergyScaleFactor,access_location::host,access_mode::readwrite);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::readwrite);
 
-    double s = h_kes.data[1]; //scale factor computed by propagateChain()
+    double s = h_kes.data[1]; 
     for (int ii = 0; ii < Ndof; ++ii)
         h_v.data[ii] = s * h_v.data[ii];
     
-    // --- ADD THIS LINE ---
-    // Apply the thermostat scaling to the barostat momentum
     p_epsilon *= s; 
-    // ---------------------
 
-    //h_kes.data[0] stores particle KE only
     h_kes.data[0] = s*s * h_kes.data[0];
     }
 
