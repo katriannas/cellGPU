@@ -94,38 +94,59 @@ void cellListGPU::setBox(periodicBoundaries &bx)
 \param a the approximate side length of all of the cells.
 This routine currently picks an even integer of cells, close to the desired size, that fit in the box.
  */
+
 void cellListGPU::setGridSize(double a)
-    {
+{
     if(!GPUcompute)
-        {
+    {
         particles.neverGPU = true;
         cell_sizes.neverGPU = true;
         idxs.neverGPU = true;
         assist.neverGPU = true;
-        };
+    }
 
-    double b11,b12,b21,b22;
-    Box->getBoxDims(b11,b12,b21,b22);
-    xsize = (int)floor(b11/a);
-    if(xsize%2==1) xsize +=1;
-    ysize = (int)floor(b22/a);
-    if(ysize%2==1) ysize +=1;
+    double b11, b12, b21, b22;
+    Box->getBoxDims(b11, b12, b21, b22);
 
-    boxsize = b11/xsize;
+    xsize = (int)floor(b11 / a);
+    ysize = (int)floor(b22 / a);
 
-    totalCells = xsize*ysize;
-    cell_sizes.resize(totalCells); //number of elements in each cell...initialize to zero
+    if (xsize < 1) xsize = 1;
+    if (ysize < 1) ysize = 1;
 
-    cell_indexer = Index2D(xsize,ysize);
+    if (xsize % 2 == 1) xsize += 1;
+    if (ysize % 2 == 1) ysize += 1;
 
-    //estimate Nmax
-    if(ceil(Np/totalCells)+1 > Nmax)
-        Nmax = ceil(Np/totalCells)+1;
+    totalCells = xsize * ysize;
+
+    if (totalCells < 1)
+        totalCells = 1;
+
+    boxsize = b11 / xsize; 
+
+    cell_sizes.resize(totalCells);
+
+    cell_indexer = Index2D(xsize, ysize);
+
+    double cells = (double) totalCells;
+
+    double occ = Np / cells;
+    if (!std::isfinite(occ) || occ < 0.0)
+        occ = Np;  //fallback: all particles in one cell
+
+    int requiredNmax = (int)ceil(occ) + 1;
+
+    if (requiredNmax < 1)
+        requiredNmax = 1;
+
+    if (requiredNmax > Nmax)
+        Nmax = requiredNmax;
+
     if(GPUcompute)
         resetCellSizes();
     else
         resetCellSizesCPU();
-    };
+}
 
 /*!
 Sets all cell sizes to zero, all cell indices to zero, and resets the "assist" utility structure,

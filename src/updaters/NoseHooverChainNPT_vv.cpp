@@ -343,6 +343,8 @@ void NoseHooverChainNPT::propagatePositionsVelocities()
     };
 
     voronoi->moveDegreesOfFreedom(displacements);
+    voronoi->enforceTopology();
+    voronoi->computeForces();
 
     //write particle KE so subsequent thermostat/barostat calls see correct KE
     {
