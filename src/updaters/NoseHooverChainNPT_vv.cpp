@@ -167,10 +167,10 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
 
-    if (epsilon_old != 0.0)
-        delta_epsilon = epsilon - epsilon_old;
-    else
-        delta_epsilon = epsilon;
+    //if (epsilon_old != 0.0)
+    //    delta_epsilon = epsilon - epsilon_old;
+    //else
+    //    delta_epsilon = epsilon;
 
     if (delta_epsilon != 0.0)
         {
@@ -188,10 +188,10 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     //Barostat half-step + rescale (second half)
     epsilon_old = epsilon;
     updateBarostatHalfStep(deltaT);
-    if (epsilon_old != 0.0)
-        delta_epsilon = epsilon - epsilon_old;
-    else
-        delta_epsilon = epsilon;
+    //if (epsilon_old != 0.0)
+    //   delta_epsilon = epsilon - epsilon_old;
+    //else
+    //    delta_epsilon = epsilon;
     if (delta_epsilon != 0.0)
         {
         double factor = exp(delta_epsilon);
