@@ -5,9 +5,6 @@
 #include "utilities.cuh"
 #include <ostream>
 
-/* extern double getSigmaXX();
-extern double getSigmaYY();
-
 /*!
 Initialize everything, by default setting the target temperature to unity.
 Note that in the current set up the thermostate masses are automatically set by the target temperature, assuming \tau = 1
@@ -130,7 +127,7 @@ case where the chain length is not necessarily always 2
 
 void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     {
-    // Ensure valid forces exist before first half-kick
+    //Ensure valid forces exist before first half
     if (Timestep == 1)
         voronoi->computeForces();
 
@@ -163,7 +160,6 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
     phaseB();
     phaseA();
 
-    reportBarostatData();
     }
 
 void NoseHooverChainNPT::phaseA()
@@ -176,7 +172,7 @@ void NoseHooverChainNPT::phaseA()
 
     ArrayHandle<double4> Bath(BathVariables);
 
-    // Step 1
+    //Step 1
     {
     int ii = Nchain - 1;
 
@@ -194,7 +190,7 @@ void NoseHooverChainNPT::phaseA()
     Bath.data[ii].y += Bath.data[ii].z * dt4;
     }
 
-    // Steps 2-4
+    //Steps 2-4 working down the chain
     for (int ii = Nchain - 2; ii >= 0; --ii)
         {
         Bath.data[ii].y *= exp(-Bath.data[ii+1].y * dt8);
@@ -225,21 +221,21 @@ void NoseHooverChainNPT::phaseA()
     {
     double ef1 = exp(-Bath.data[0].y * dt8);
 
-    // Step 5
+    //Step 5
     barostatVelocityScale(ef1);
 
-    // Step 6
+    //Step 6
     updateBarostatVelocity(dt4);
 
-    // Step 7
+    //Step 7
     barostatVelocityScale(ef1);
 
-    // Step 8
+    //Step 8
     {
     double veps     = getBarostatVelocity();
     double vxi1     = Bath.data[0].y;
     double combined =
-        vxi1 + (1.0 + double(Ndim) / double(Ndof)) * veps;
+        vxi1 + (1.0 + double(d) / double(Ndof)) * veps;
 
     double scale = exp(-combined * dt2);
 
@@ -248,19 +244,21 @@ void NoseHooverChainNPT::phaseA()
                              access_mode::readwrite);
 
     for (int ii = 0; ii < Ndof; ++ii)
-        h_v.data[ii] *= scale;
+        {
+        h_v.data[ii].x *= scale;
+        h_v.data[ii].y *= scale;
+        }
 
-    // keep kinetic energy synchronised with scaled velocities
+    //keep kinetic energy synchronised with scaled velocities
     h_kes.data[0] *= scale * scale;
 
-    barostatVelocityScale(scale);
     }
 
     // Step 9
     for (int ii = 0; ii < Nchain; ++ii)
         Bath.data[ii].x += dt2 * Bath.data[ii].y;
 
-    // Step 10
+    //Step 10
     {
     double total_ke =
         h_kes.data[0] + barostatKineticEnergy();
@@ -273,7 +271,7 @@ void NoseHooverChainNPT::phaseA()
     Bath.data[0].y += Bath.data[0].z * dt4;
     }
 
-    // Steps 11-12
+    //Steps 11-12
     for (int ii = 1; ii <= Nchain - 2; ++ii)
         {
         Bath.data[ii].y *= exp(-Bath.data[ii-1].y * dt8);
@@ -288,7 +286,7 @@ void NoseHooverChainNPT::phaseA()
         Bath.data[ii].y += Bath.data[ii].z * dt4;
         }
 
-    // Step 13
+    //Step 13
     {
     int ii = Nchain - 1;
 
@@ -316,6 +314,7 @@ void NoseHooverChainNPT::phaseA()
     Bath.data[ii].y += Bath.data[ii].z * dt4;
     }
     }
+    }
 
 double NoseHooverChainNPT::getBarostatVelocity()
     {
@@ -330,8 +329,7 @@ void NoseHooverChainNPT::barostatVelocityScale(double scale)
 
 void NoseHooverChainNPT::updateBarostatVelocity(double dt4)
     {
-    // p_epsilon <- p_epsilon + G_epsilon * dt/4
-    // G_epsilon = V * (P_inst - P_target)
+    //p_epsilon <- p_epsilon + G_epsilon * dt/4, G_epsilon = V * (P_inst - P_target)
     computeInstantaneousPressure();
     p_epsilon += dt4 * V * d * (P_inst - P_target);
     }
@@ -343,7 +341,7 @@ double NoseHooverChainNPT::barostatKineticEnergy()
 
 void NoseHooverChainNPT::computeInstantaneousPressure()
     {
-    // compute kinetic energy
+    //compute kinetic energy
     ArrayHandle<double2> h_v(voronoi->returnVelocities(),access_location::host,access_mode::read);
     ArrayHandle<double>   h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
 
@@ -384,9 +382,7 @@ This is the step in which a force calculation is required.
 
 void NoseHooverChainNPT::phaseB()
     {
-    // Phase B: update particle velocities by dt/2 using current forces (action of L_1).
-    // Forces must already be computed before this is called.
-    // Accumulates particle KE into h_kes.data[0] for use by the thermostat/barostat.
+    //Phase B: update particle velocities by dt/2 using current forces (action of L_1). Particle KE goes into h_kes.data[0] for use by the thermostat/barostat.
     double deltaT2 = 0.5 * deltaT;
     double K_local = 0.0;
 
@@ -396,7 +392,9 @@ void NoseHooverChainNPT::phaseB()
 
     for (int ii = 0; ii < Ndof; ++ii)
         {
-        h_v.data[ii]  += (deltaT2 / h_m.data[ii]) * h_f.data[ii];
+        double scalar = deltaT2 / h_m.data[ii];
+        h_v.data[ii].x += scalar * h_f.data[ii].x;
+        h_v.data[ii].y += scalar * h_f.data[ii].y;
         K_local       += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
         }
 
@@ -406,9 +404,8 @@ void NoseHooverChainNPT::phaseB()
 
 void NoseHooverChainNPT::updateBarostatPosition(double dt)
     {
-    // Update barostat position by dt and rescale box accordingly.
-    // epsilon <- epsilon + v_epsilon * dt
-    // V(epsilon) = V_prev * exp(d * delta_epsilon)
+    //Update barostat position by dt and rescale box accordingly.
+    //epsilon <- epsilon + v_epsilon * dt, V(epsilon) = V_prev * exp(d * delta_epsilon)
     double delta_epsilon = getBarostatVelocity() * dt;
     epsilon += delta_epsilon;
 
@@ -420,13 +417,13 @@ void NoseHooverChainNPT::updateBarostatPosition(double dt)
     }
 
 void NoseHooverChainNPT::phaseC()
-    {""
+    {
     double veps = getBarostatVelocity();
 
-    // affine scaling factor
+    //affine scaling factor
     double scale = exp(veps * deltaT);
 
-    // update box dimensions
+    //update box dimensions -- actually call update to epsilon
     updateBarostatPosition(deltaT);
 
     {
@@ -444,11 +441,13 @@ void NoseHooverChainNPT::phaseC()
 
     for (int ii = 0; ii < Ndof; ++ii)
         {
-        // affine coordinate scaling
-        h_r.data[ii] *= scale;
+        //coordinate scaling
+        h_r.data[ii].x *= scale;
+        h_r.data[ii].y *= scale;
 
-        // ordinary drift
-        h_disp.data[ii] = h_v.data[ii] * deltaT;
+        //coordinate update
+        h_disp.data[ii].x = h_v.data[ii].x * deltaT;
+        h_disp.data[ii].y = h_v.data[ii].y * deltaT;
         }
     }
 
