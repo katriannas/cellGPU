@@ -1,6 +1,6 @@
 #include "voronoiQuadraticEnergy.h"
 #include "Simple2DCell.h"
-#include "NoseHooverChainNPT_vv.h"
+#include "NoseHooverChainNPT_mk3.h"
 #include "voronoiQuadraticEnergy.h"
 #include "utilities.cuh"
 #include <ostream>
