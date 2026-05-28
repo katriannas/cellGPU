@@ -20,6 +20,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     Timestep = 0;
     deltaT=0.01;
     V = N;
+    Nf = (2 * N) -2;
     Lx = sqrt(V);
     Ly = sqrt(V);
     GPUcompute=false;
@@ -46,7 +47,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         };
     kineticEnergyScaleFactor.resize(2);
     setT(1.0);
-    W = (( d * N) + d) * T * 10;
+    W = (( d * Nf) + d) * T * 10;
     };
 
 //Set pointer to refer to voronoiModel
@@ -234,8 +235,7 @@ void NoseHooverChainNPT::phaseA()
     {
     double veps     = getBarostatVelocity();
     double vxi1     = Bath.data[0].y;
-    double combined =
-        vxi1 + (1.0 + double(d) / double(Ndof)) * veps;
+    double combined = vxi1 + veps;
 
     double scale = exp(-combined * dt2);
 
@@ -329,9 +329,23 @@ void NoseHooverChainNPT::barostatVelocityScale(double scale)
 
 void NoseHooverChainNPT::updateBarostatVelocity(double dt4)
     {
-    //p_epsilon <- p_epsilon + G_epsilon * dt/4, G_epsilon = V * (P_inst - P_target)
     computeInstantaneousPressure();
-    p_epsilon += dt4 * V * d * (P_inst - P_target);
+
+    ArrayHandle<double> h_kes(kineticEnergyScaleFactor,
+                              access_location::host,
+                              access_mode::read);
+
+    // kinetic contribution:
+    // (d/Nf) * sum_i m_i v_i^2
+    // = (2d/Nf) * K
+    double kinetic_term =
+        (2.0 * double(d) / double(Ndof)) * h_kes.data[0];
+
+    double G_epsilon =
+        double(d) * V * (P_inst - P_target)
+        + kinetic_term;
+
+    p_epsilon += dt4 * G_epsilon;
     }
 
 double NoseHooverChainNPT::barostatKineticEnergy()
@@ -420,10 +434,11 @@ void NoseHooverChainNPT::phaseC()
     {
     double veps = getBarostatVelocity();
 
-    //affine scaling factor
-    double scale = exp(veps * deltaT);
+    //Affine scaling factors
+    double scale      = exp(veps * deltaT);
+    double scale_half = exp(0.5 * veps * deltaT);
 
-    //update box dimensions -- actually call update to epsilon
+    //Update box dimensions / epsilon
     updateBarostatPosition(deltaT);
 
     {
@@ -441,18 +456,23 @@ void NoseHooverChainNPT::phaseC()
 
     for (int ii = 0; ii < Ndof; ++ii)
         {
-        //coordinate scaling
+        //full affine scaling of coordinates
         h_r.data[ii].x *= scale;
         h_r.data[ii].y *= scale;
 
-        //coordinate update
-        h_disp.data[ii].x = h_v.data[ii].x * deltaT;
-        h_disp.data[ii].y = h_v.data[ii].y * deltaT;
+        //drift contribution with half scaling factor
+        h_disp.data[ii].x =
+            h_v.data[ii].x * deltaT * scale_half;
+
+        h_disp.data[ii].y =
+            h_v.data[ii].y * deltaT * scale_half;
         }
     }
 
     voronoi->moveDegreesOfFreedom(displacements);
+
     voronoi->enforceTopology();
+
     voronoi->computeForces();
     }
 
