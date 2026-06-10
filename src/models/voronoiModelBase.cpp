@@ -453,6 +453,81 @@ void voronoiModelBase::enforceTopology()
     allDelSets();
     };
 
+void voronoiModelBase::scaleRectangularUnitCell(double Lx, double Ly, double scale)
+{
+    Box->setSquare(Lx, Ly);
+
+    //Area scaling factor (scale^2)
+    double scaleSquared = scale * scale;
+
+    //Find all the arrays and where they are from
+    {
+        //Cell positions (from Simple2DCell)
+        ArrayHandle<double2> h_p(cellPositions, access_location::host, access_mode::readwrite);
+
+        //Voronoi cell geometry (from voronoiModelBase)
+        ArrayHandle<double2> h_AP(AreaPeri, access_location::host, access_mode::readwrite);
+        ArrayHandle<double2> h_vc(voroCur, access_location::host, access_mode::readwrite);
+        ArrayHandle<double4> h_vln(voroLastNext, access_location::host, access_mode::readwrite);
+
+        //Delaunay topology metric structures (from DelaunayGPU)
+        ArrayHandle<double2> h_del_vc(delGPU.GPUVoroCur, access_location::host, access_mode::readwrite);
+        ArrayHandle<double2> h_del_dp(delGPU.GPUDelNeighsPos, access_location::host, access_mode::readwrite);
+        
+        //Cell list tracking (from cellListGPU)
+        ArrayHandle<double2> h_cl_p(delGPU.cList.particles, access_location::host, access_mode::readwrite);
+
+        //Rescale particle positions
+        for (int i = 0; i < Ncells; ++i)
+        {
+            //Particle positions --- same thing setRectangularUnitCell does
+            h_p.data[i].x *= scale;
+            h_p.data[i].y *= scale;
+
+            //Areas and perimeters for potential energy calculation (didn't realise these were stored separately)
+            h_AP.data[i].x *= scale2; //Quadratic scaling for A
+            h_AP.data[i].y *= scale;  //Linear scaling for p
+        }
+        
+        //Rescale Voronoi vertices and relative positions
+        int max_elements = neighMax * Ncells;
+        for(int i = 0; i < max_elements; ++i)
+        {
+            //VoroCur (voronoiModelBase)
+            h_vc.data[i].x *= scale;
+            h_vc.data[i].y *= scale;
+
+            //VoroLastNext (voronoiModelBase)
+            h_vln.data[i].x *= scale;
+            h_vln.data[i].y *= scale;
+            h_vln.data[i].z *= scale;
+            h_vln.data[i].w *= scale;
+            
+            //GPUVoroCur (DelaunayGPU)
+            h_del_vc.data[i].x *= scale;
+            h_del_vc.data[i].y *= scale;
+            
+            //GPUDelNeighsPos (DelaunayGPU)
+            h_del_dp.data[i].x *= scale;
+            h_del_dp.data[i].y *= scale;
+        }
+        
+        //Rescale internal cell list particle tracking array
+        for(int i = 0; i < delGPU.cList.Np; ++i)
+        {
+            h_cl_p.data[i].x *= scale;
+            h_cl_p.data[i].y *= scale;
+        }
+    }
+
+    //Grid and box size without setRectangularUnitCell
+    delGPU.cellsize *= scale;
+    delGPU.cList.boxsize *= scale;
+
+    delGPU.setBox(Box);
+    delGPU.cList.setBox(*(Box)); 
+}
+
 //read a triangulation from a text file...used only for testing purposes. Any other use should call the Database class (see inc/Database.h")
 void voronoiModelBase::readTriangulation(ifstream &infile)
     {

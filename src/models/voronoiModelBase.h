@@ -83,6 +83,8 @@ class voronoiModelBase : public Simple2DActiveCell
 
         //!Update the cell list structure after particles have moved
         void updateCellList();
+        //!Rescale the simulation cell when an NPT update occurs
+        void scaleRectangularUnitCell(double Lx, double Ly, double scale)
         //!update the NieghIdxs data structure
         void updateNeighIdxs();
         //set number of threads
