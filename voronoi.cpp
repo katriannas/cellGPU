@@ -3,6 +3,8 @@
 #include "cuda_runtime.h"
 #include "cuda_profiler_api.h"
 
+#include <chrono>
+#include <fstream>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
@@ -86,6 +88,11 @@ int main(int argc, char*argv[])
     baro_filename << "barostat_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".csv";
     std::ofstream baro_outfile(baro_filename.str());
 
+    std::ostringstream time_filename;
+    time_filename << "times_T" << T << "_p0" << p0 << "_N" << numpts << "_" << timestamp << ".csv";
+    std::ofstream time_outfile(time_filename.str());
+
+
     clock_t t1,t2; //clocks for timing information
     bool reproducible = true; // if you want random numbers with a more random seed each run, set this to false
     //check to see if we should run on a GPU
@@ -157,7 +164,6 @@ int main(int argc, char*argv[])
 
     //run for additional timesteps, compute dynamical features, and record timing information
     dynamicalFeatures dynFeat(voronoiModel->returnPositions(),voronoiModel->Box);
-    t1=clock();
 //    cudaProfilerStart();
 
     for(long long int ii = 0; ii < tSteps; ++ii)
@@ -170,21 +176,25 @@ int main(int argc, char*argv[])
         double sigmaYY = voronoiModel->getSigmaYY();
         double totalPressure = (-0.5 * (sigmaXX + sigmaYY)) + (kineticEnergy / instArea);
 
-        npt->reportBarostatData(baro_outfile);
+        //npt->reportBarostatData(baro_outfile);
         outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
 
         //if (ii == lewriter.nextFrameToSave)
         //    {
         //    lewriter.writeState(voronoiModel,ii);
         //    }
+        auto start = std::chrono::high_resolution_clock::now();
 
         sim->performTimestep();
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> stepDuration = end - start;
+        time_outfile << ii << "," << stepDuration << "\n";
         };
 //    cudaProfilerStop();
-    t2=clock();
     printf("final state:\t\t energy %f \t msd %f \t overlap %f\n",voronoiModel->computeEnergy(),dynFeat.computeMSD(voronoiModel->returnPositions()),dynFeat.computeOverlapFunction(voronoiModel->returnPositions()));
-    double steptime = (t2-t1)/(double)CLOCKS_PER_SEC/tSteps;
-    cout << "timestep ~ " << steptime << " per frame; " << endl;
+    //double steptime = (t2-t1)/(double)CLOCKS_PER_SEC/tSteps;
+    //cout << "timestep ~ " << steptime << " per frame; " << endl;
 
     if(initializeGPU)
         cudaDeviceReset();

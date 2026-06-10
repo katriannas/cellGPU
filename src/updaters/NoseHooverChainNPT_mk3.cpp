@@ -20,7 +20,7 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
     Timestep = 0;
     deltaT=0.01;
     V = N;
-    Nf = (2 * N) -2;
+    Nf = (d * N) - d;
     Lx = sqrt(V);
     Ly = sqrt(V);
     GPUcompute=false;
