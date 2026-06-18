@@ -170,7 +170,7 @@ int main(int argc, char*argv[])
         printf("Loading equilibrated state from restart file...\n");
         
         //Read in the restart file
-        shared_ptr<simpleVoronoiDatabase> restart_ncdat = make_shared<simpleVoronoiDatabase>(numpts, restart_filename, fileMode::read);
+        shared_ptr<simpleVoronoiDatabase> restart_ncdat = make_shared<simpleVoronoiDatabase>(numpts, restart_filename, fileMode::readonly);
 
         //0 tells the reader to pull the first (and only) frame from the file.
         restart_ncdat->readState(voronoiModel, 0);
