@@ -47,7 +47,9 @@ int main(int argc, char*argv[])
     double Ly = sqrt(V);
     double pflag = 0; //whether or not to run a barostat - any value other than 0 will run a barostat
     int Nchain = 4;     //The number of thermostats to chain together
-    
+    double restart = 0; //whether to start from scratch or from a restart file - any value other than 0 will start from file.
+    std::string restart_filename = "";
+
     //The defaults can be overridden from the command line
     while((c=getopt(argc,argv,"n:g:m:s:r:a:i:v:b:x:y:z:p:t:e:")) != -1)
         switch(c)
@@ -61,7 +63,9 @@ int main(int argc, char*argv[])
             case 'a': a0 = atof(optarg); break;
             case 'v': T = atof(optarg); break;
             case 'r': P = atof(optarg); break; //for pRessure because p was already taken
-            case 'f': pflag = atof(optarg); break; //for flag
+            case 'f': pflag = atof(optarg); break; //for Flag
+            case 'l': restart = atof(optarg); break; //for Loading a restart file or not (seriously, I'm running out of letters.)
+            case 's': restart_filename = optarg; break; //for String
             case '?':
                     if(optopt=='c')
                         std::cerr<<"Option -" << optopt << "requires an argument.\n";
@@ -102,19 +106,19 @@ int main(int argc, char*argv[])
     bool initializeGPU = false;
 
     //set-up a log-spaced state saver...can add as few as 1 database, or as many as you'd like. "0.1" will save 10 states per decade of time
-    //logEquilibrationStateWriter lewriter(0.1);
-    //char dataname[256];
-    //double equilibrationTime = dt*initSteps;
-    //vector<long long int> offsets;
-    //offsets.push_back(0);
+    logEquilibrationStateWriter lewriter(0.1);
+    char dataname[256];
+    double equilibrationTime = dt*initSteps;
+    vector<long long int> offsets;
+    offsets.push_back(0);
     ////offsets.push_back(100);offsets.push_back(1000);offsets.push_back(50);
-    //for(int ii = 0; ii < offsets.size(); ++ii)
-    //    {
-    //    sprintf(dataname,"test_N%i_p%.5f_T%.8f_et%.6f.nc",numpts,p0,T,offsets[ii]*dt);
-    //    shared_ptr<simpleVoronoiDatabase> ncdat=make_shared<simpleVoronoiDatabase>(numpts,dataname,fileMode::replace);
-    //    lewriter.addDatabase(ncdat,offsets[ii]);
-    //    }
-    //lewriter.identifyNextFrame();
+    for(int ii = 0; ii < offsets.size(); ++ii)
+        {
+        sprintf(dataname,"test_N%i_p%.5f_T%.8f_et%.6f.nc",numpts,p0,T,offsets[ii]*dt);
+        shared_ptr<simpleVoronoiDatabase> ncdat=make_shared<simpleVoronoiDatabase>(numpts,dataname,fileMode::replace);
+        lewriter.addDatabase(ncdat,offsets[ii]);
+        }
+    lewriter.identifyNextFrame();
 
     //Decide which integrator to use - NPT (MTTK) or NVT (Nose-Hoover chain) ensemble
     //if (pflag != 0) { 
@@ -150,14 +154,35 @@ int main(int argc, char*argv[])
     sim->setOmpThreads(abs(USE_GPU));
     sim->setReproducible(reproducible);
 
-    //run for a few initialization timesteps
-    printf("starting initialization\n");
-    for(long long int ii = 0; ii < initSteps; ++ii)
+    //This is new (06/18) - restart from file or initialise from scratch
+    if (restart == 0) 
         {
-        sim->performTimestep();
-        };
-    voronoiModel->computeGeometry();
-    printf("Finished with initialization\n");
+        printf("starting initialisation from scratch\n");
+        for(long long int ii = 0; ii < initSteps; ++ii)
+            {
+            sim->performTimestep();
+            };
+        voronoiModel->computeGeometry();
+        printf("Finished with initialisation\n");
+        } 
+    else 
+        {
+        printf("Loading equilibrated state from restart file...\n");
+        
+        //Read in the restart file
+        shared_ptr<simpleVoronoiDatabase> restart_ncdat = make_shared<simpleVoronoiDatabase>(numpts, restart_file, fileMode::read);
+
+        //0 tells the reader to pull the first (and only) frame from the file.
+        restart_ncdat->readState(voronoiModel, 0);
+
+        //Reshuffle velocities to break deterministic integrator --- not just get copies of the same run every time. (Same for thermo/barostat???)
+        voronoiModel->setCellVelocitiesMaxwellBoltzmann(T);
+
+        //Newly loaded box size and positions
+        voronoiModel->computeGeometry();
+        printf("Finished loading restart state\n");
+        }
+
     cout << "current q = " << voronoiModel->reportq() << endl;
     //the reporting of the force should yield a number that is numerically close to zero.
     voronoiModel->reportMeanCellForce(false);
@@ -179,22 +204,30 @@ int main(int argc, char*argv[])
         npt->reportBarostatData(baro_outfile);
         outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
 
-        //if (ii == lewriter.nextFrameToSave)
-        //    {
-        //    lewriter.writeState(voronoiModel,ii);
-        //    }
-        auto start = std::chrono::high_resolution_clock::now();
+        if (ii == lewriter.nextFrameToSave)
+            {
+            lewriter.writeState(voronoiModel,ii);
+            }
+        //auto start = std::chrono::high_resolution_clock::now();
 
         sim->performTimestep();
 
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> stepDuration = end - start;
-        time_outfile << ii << "," << stepDuration.count() << "\n";
+        //auto end = std::chrono::high_resolution_clock::now();
+        //std::chrono::duration<double> stepDuration = end - start;
+        //time_outfile << ii << "," << stepDuration.count() << "\n";
         };
 //    cudaProfilerStop();
     printf("final state:\t\t energy %f \t msd %f \t overlap %f\n",voronoiModel->computeEnergy(),dynFeat.computeMSD(voronoiModel->returnPositions()),dynFeat.computeOverlapFunction(voronoiModel->returnPositions()));
     //double steptime = (t2-t1)/(double)CLOCKS_PER_SEC/tSteps;
     //cout << "timestep ~ " << steptime << " per frame; " << endl;
+
+    voronoiModel->computeForces();
+
+    char dataname[256];
+    sprintf(dataname,"final_state_T%.8f_p0%.5f_N%i_%s.nc", T, p0, numpts, timestamp.c_str());
+    
+    shared_ptr<simpleVoronoiDatabase> final_state = make_shared<simpleVoronoiDatabase>(numpts, dataname, fileMode::replace);
+    final_state->writeState(voronoiModel);
 
     if(initializeGPU)
         cudaDeviceReset();

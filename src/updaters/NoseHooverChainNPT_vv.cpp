@@ -377,15 +377,41 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
 void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
 {
     computeInstantaneousPressure();
+
+    //Get thermostat energy out of array
+    double E_thermostat = 0.0;
+    ArrayHandle<double4> h_bv(BathVariables, access_location::host, access_mode::read);
+    
+    for (int ii = 0; ii < Nchain; ++ii)
+        {
+        double xi  = h_bv.data[ii].x; //thermostat position
+        double vxi = h_bv.data[ii].y; //thermostat velocity
+        double Q   = h_bv.data[ii].w; //thermostat mass
+
+        E_thermostat += 0.5 * Q * vxi * vxi; 
+        //Potential
+        if (ii == 0)
+            E_thermostat += (2.0 * Ndof - 1.0) * Temperature * xi;
+        else
+            E_thermostat += Temperature * xi;
+        }
+
+    double E_pot = voronoi->computeEnergy();
+    double E_kin = voronoi->computeKineticEnergy();
+    double E_baro_kin = barostatKineticEnergy();
+    double E_baro_pot = P_target * V;
+    double H_ext = E_pot + E_kin + E_baro_pot + E_baro_kin + E_thermostat;
+
     out_stream << epsilon << "\t"
                << p_epsilon << "\t"
                << W << "\t"
                << P_target << "\t"
                << P_inst << "\t"
                << V << "\t"
-               << voronoi->computeEnergy() << "\t"
-               << voronoi->computeKineticEnergy() << "\t"
-               << barostatKineticEnergy()
+               << E_pot << "\t"
+               << E_kin << "\t"
+               << E_baro_kin << "\t"
+               << H_ext
                << std::endl;
 }
 
