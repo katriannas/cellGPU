@@ -6,15 +6,6 @@
 #include "Simple2DCell.h"
 #include <ostream>
 
-/*! \file NoseHooverChainNPT.h */
-//! Implements NPT dynamics according to the Nose-Hoover equations of motion with a chain of thermostats
-/*!
- *This allows one to do standard NPT simulations. A chain (whose length can be specified by the user)
- of thermostats is used to maintain the target temperature. We closely follow the Frenkel & Smit
- update scheme, which is itself based on:
- Martyna, Tuckerman, Tobias, and Klein
- Mol. Phys. 87, 1117 (1996)
-*/
 class NoseHooverChainNPT : public simpleEquationOfMotion
     {
     public:
@@ -26,16 +17,11 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         shared_ptr<VoronoiQuadraticEnergy> voronoi;
         //!set the internal State to the given model
         virtual void set2DModel(shared_ptr<Simple2DModel> _model);
-        //!Also need VoronoiQuadraticEnergy for computeEnergy, getSigmaXX, and getSigmaYY
-        //shared_ptr<VoronoiQuadraticEnergy> voronoiModel;
-        //virtual void setVoronoiQuadraticEnergy(shared_ptr<VoronoiQuadraticEnergy> _vqe){voronoiModel = _vqe;};
 
         //!the fundamental function that models will call, using vectors of different data structures
         virtual void integrateEquationsOfMotion();
         //!call the CPU routine to integrate the e.o.m.
         virtual void integrateEquationsOfMotionCPU();
-        //!call the GPU routine to integrate the e.o.m.
-        //! virtual void integrateEquationsOfMotionGPU();
 
         //!Get temperature, T
         double getT(){return Temperature;};
@@ -68,45 +54,42 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         double V;
         double Lx;
         double Ly;
+        double Nf;
 
     protected:
         int d;
+        int Timestep;
+        double deltaT;
+        bool GPUcompute;
+        GPUArray<double2> displacements;
 
-        //Barostat helpers
+        //Barostat and Integration helpers
+        void phaseA();
+        void phaseB();
+        void phaseC();
+
+        double getBarostatVelocity();
+        void barostatVelocityScale(double scale);
+        void updateBarostatVelocity(double dt4);
+        void updateBarostatPosition(double dt);
+        
         double barostatKineticEnergy();
-        void setBarostatParameters(double W_in, double P_target_in, double V0_in);
         void computeInstantaneousPressure();
-        void updateBarostatHalfStep(double dt);
-        void rescaleBoxAndPositions(double delta_epsilon);
-        void rescaleVelocitiesBarostat(double delta_epsilon);
-        void rescaleThermoVelocities();
-        void setRectangularUnitCell(double Lx, double Ly, double delta_eps);
+
         double total_ke;
         double target_dof;
 
         //!The targeted temperature
         double Temperature;
-        //!The lference area at epsilon = 0ength of the NH chain
+        //!The length of the NH chain
         int Nchain;
         //!The number of particles in the State
         int Ndof;
+        
         //!A helper vector for the GPU branch...can be asked to store 0.5*m[i]*v[i]^2 as an array
         GPUArray<double> keArray;
         //!A helper structure for performing parallel reduction of the keArray
         GPUArray<double> keIntermediateReduction;
-
-        //!Propagate the chain
-        void propagateChain();
-        void propagateChainGPU();
-        //!Propagate the position and velocity of the particles
-        void propagatePositionsVelocities();
-
-        //!Rescale velocities on the GPU
-        void rescaleVelocitiesGPU();
-        //! combine kernel calls for vector combination and parallel reduction to compute the KE in the helper structure
-        void calculateKineticEnergyGPU();
-        //!Propagate the position and velocity of the particles...on the gpu
-        void propagatePositionsVelocitiesGPU();
 
     };
 #endif

@@ -103,13 +103,14 @@ class cellListGPU
 
         bool GPUcompute = true;
 
-    protected:
-        //!first index is Nmax, second is whether to recompute
-        GPUArray<int> assist;
         //!The number of particles to put in cells
         int Np;
         //! The linear size of each grid cell
         double boxsize;
+
+    protected:
+        //!first index is Nmax, second is whether to recompute
+        GPUArray<int> assist;
         //!The number of bins in the x-direction
         int xsize;
         //!the number of bins in the y-direction

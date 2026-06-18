@@ -176,7 +176,7 @@ int main(int argc, char*argv[])
         double sigmaYY = voronoiModel->getSigmaYY();
         double totalPressure = (-0.5 * (sigmaXX + sigmaYY)) + (kineticEnergy / instArea);
 
-        //npt->reportBarostatData(baro_outfile);
+        npt->reportBarostatData(baro_outfile);
         outfile << ii << "," << totalEnergy << "," << totalPressure << "\n";
 
         //if (ii == lewriter.nextFrameToSave)
@@ -189,7 +189,7 @@ int main(int argc, char*argv[])
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> stepDuration = end - start;
-        time_outfile << ii << "," << stepDuration << "\n";
+        time_outfile << ii << "," << stepDuration.count() << "\n";
         };
 //    cudaProfilerStop();
     printf("final state:\t\t energy %f \t msd %f \t overlap %f\n",voronoiModel->computeEnergy(),dynFeat.computeMSD(voronoiModel->returnPositions()),dynFeat.computeOverlapFunction(voronoiModel->returnPositions()));

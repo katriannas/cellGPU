@@ -56,6 +56,14 @@ class DelaunayGPU
         int MaxSize;
         //!A helper array containing the positions of voronoi vertices associated with every 1-ring
         GPUArray<double2> GPUVoroCur;
+        //!A cell list for speeding up the calculation of the candidate 1-ring
+        cellListGPU cList;
+        //!keep track of the linear size of the cells used by the cellListGPU object
+        double cellsize; 
+        //!A helper array containing the positions of the delaunay positions associated with every 1-ring of neighboring points
+        GPUArray<double2> GPUDelNeighsPos;
+
+
 
     protected:
         //!Given point set, test the quality of a triangulation on the GPU
@@ -96,9 +104,6 @@ class DelaunayGPU
 
         //!Repair the parts of the triangulation associated with the given repairList
         void locallyRepairDelaunayTriangulation(GPUArray<double2> &points, GPUArray<int> &GPUTriangulation, GPUArray<int> &cellNeighborNum,GPUArray<int> &repairList, int numberToRepair=-1);
-
-        //!A helper array containing the positions of the delaunay positions associated with every 1-ring of neighboring points
-        GPUArray<double2> GPUDelNeighsPos;
         //!A helper array containing the indices of the points forming the 1-ring of each point
         GPUArray<int> GPUPointIndx;
         //!A helper array for the testAndRepair branch containing indices of points forming circumcircles
@@ -123,9 +128,5 @@ class DelaunayGPU
         //!A 2dIndexer for computing where in the GPUArray to look for a given particles neighbors GPU
         Index2D GPU_idx;
 
-        //!A cell list for speeding up the calculation of the candidate 1-ring
-        cellListGPU cList;
-        //!keep track of the linear size of the cells used by the cellListGPU object
-        double cellsize;
     };
 #endif
