@@ -339,7 +339,7 @@ void NoseHooverChainNPT::updateBarostatVelocity(double dt4)
     // (d/Nf) * sum_i m_i v_i^2
     // = (2d/Nf) * K
     double kinetic_term =
-        (2.0 * double(d) / double(Ndof)) * h_kes.data[0];
+        (2.0 * double(d) / double(Nf)) * h_kes.data[0];
 
     double G_epsilon =
         double(d) * V * (P_inst - P_target)
@@ -391,13 +391,21 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
         E_thermostat += 0.5 * Q * vxi * vxi; 
         //Potential
         if (ii == 0)
-            E_thermostat += (2.0 * Ndof - 1.0) * Temperature * xi;
+            E_thermostat += (double(Nf) + 1.0) * Temperature * xi;
         else
             E_thermostat += Temperature * xi;
         }
 
     double E_pot = voronoi->computeEnergy();
-    double E_kin = voronoi->computeKineticEnergy();
+    double E_kin = 0.0;
+    {
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),
+                         access_location::host, access_mode::read);
+    ArrayHandle<double>  h_m(voronoi->returnMasses(),
+                         access_location::host, access_mode::read);
+    for (int ii = 0; ii < Ndof; ++ii)
+        E_kin += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
+    }
     double E_baro_kin = barostatKineticEnergy();
     double E_baro_pot = P_target * V;
     double H_ext = E_pot + E_kin + E_baro_pot + E_baro_kin + E_thermostat;
