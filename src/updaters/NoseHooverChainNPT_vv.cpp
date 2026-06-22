@@ -31,10 +31,10 @@ NoseHooverChainNPT::NoseHooverChainNPT(int N, int M, double P, double T)
         keArray.neverGPU = true;
         keIntermediateReduction.neverGPU = true;
         }
-    Ndof = N;
-    displacements.resize(Ndof);
-    keArray.resize(Ndof);
-    keIntermediateReduction.resize(Ndof);
+    Points = N;
+    displacements.resize(Points);
+    keArray.resize(Points);
+    keIntermediateReduction.resize(Points);
     Nchain = M;
     BathVariables.resize(Nchain+1);
     ArrayHandle<double4> h_bv(BathVariables);
@@ -71,7 +71,7 @@ void NoseHooverChainNPT::setT(double T)
     {
     Temperature = T;
     ArrayHandle<double4> h_bv(BathVariables);
-    h_bv.data[0].w = 2.0 * (Ndof-1)*Temperature;
+    h_bv.data[0].w = 2.0 * (Points-1)*Temperature;
     for (int ii = 1; ii < Nchain+1; ++ii)
         {
         h_bv.data[ii].w = Temperature;
@@ -91,10 +91,10 @@ outside of the normal timestep loops.
 void NoseHooverChainNPT::integrateEquationsOfMotion()
     {
     Timestep += 1;
-    if (voronoi->getNumberOfDegreesOfFreedom() != Ndof)
+    if (voronoi->getNumberOfDegreesOfFreedom() != Points)
         {
-        Ndof = voronoi->getNumberOfDegreesOfFreedom();
-        displacements.resize(Ndof);
+        Points = voronoi->getNumberOfDegreesOfFreedom();
+        displacements.resize(Points);
         setT(Temperature); //the bath mass depends on the number of degrees of freedom
         };
     integrateEquationsOfMotionCPU();
@@ -143,7 +143,7 @@ void NoseHooverChainNPT::integrateEquationsOfMotionCPU()
                             access_location::host,
                             access_mode::read);
 
-    for (int ii = 0; ii < Ndof; ++ii)
+    for (int ii = 0; ii < Points; ++ii)
         K += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
     }
 
@@ -185,7 +185,7 @@ void NoseHooverChainNPT::phaseA()
     else
         Bath.data[ii].z =
             (2.0 * (h_kes.data[0] + barostatKineticEnergy())
-             - (2.0 * Ndof - 1.0) * Temperature)
+             - (2.0 * Points - 1.0) * Temperature)
             / Bath.data[ii].w;
 
     Bath.data[ii].y += Bath.data[ii].z * dt4;
@@ -203,7 +203,7 @@ void NoseHooverChainNPT::phaseA()
 
             Bath.data[0].z =
                 (2.0 * total_ke
-                 - (2.0 * Ndof - 1.0) * Temperature)
+                 - (2.0 * Points - 1.0) * Temperature)
                 / Bath.data[0].w;
             }
         else
@@ -243,7 +243,7 @@ void NoseHooverChainNPT::phaseA()
                              access_location::host,
                              access_mode::readwrite);
 
-    for (int ii = 0; ii < Ndof; ++ii)
+    for (int ii = 0; ii < Points; ++ii)
         {
         h_v.data[ii].x *= scale;
         h_v.data[ii].y *= scale;
@@ -265,7 +265,7 @@ void NoseHooverChainNPT::phaseA()
 
     Bath.data[0].z =
         (2.0 * total_ke
-         - (2.0 * Ndof - 1.0) * Temperature)
+         - (2.0 * Points - 1.0) * Temperature)
         / Bath.data[0].w;
 
     Bath.data[0].y += Bath.data[0].z * dt4;
@@ -307,7 +307,7 @@ void NoseHooverChainNPT::phaseA()
 
         Bath.data[ii].z =
             (2.0 * total_ke
-             - (2.0 * Ndof - 1.0) * Temperature)
+             - (2.0 * Points - 1.0) * Temperature)
             / Bath.data[ii].w;
         }
 
@@ -360,7 +360,7 @@ void NoseHooverChainNPT::computeInstantaneousPressure()
     ArrayHandle<double>   h_m(voronoi->returnMasses(),access_location::host,access_mode::read);
 
     double K = 0.0;
-    for (int ii = 0; ii < Ndof; ++ii)
+    for (int ii = 0; ii < Points; ++ii)
         {
         double v2 = dot(h_v.data[ii], h_v.data[ii]);
         double mi = h_m.data[ii];
@@ -403,7 +403,7 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
                          access_location::host, access_mode::read);
     ArrayHandle<double>  h_m(voronoi->returnMasses(),
                          access_location::host, access_mode::read);
-    for (int ii = 0; ii < Ndof; ++ii)
+    for (int ii = 0; ii < Points; ++ii)
         E_kin += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
     }
     double E_baro_kin = barostatKineticEnergy();
@@ -438,7 +438,7 @@ void NoseHooverChainNPT::phaseB()
     ArrayHandle<double2> h_v(voronoi->returnVelocities(), access_location::host, access_mode::readwrite);
     ArrayHandle<double>  h_m(voronoi->returnMasses(),  access_location::host, access_mode::read);
 
-    for (int ii = 0; ii < Ndof; ++ii)
+    for (int ii = 0; ii < Points; ++ii)
         {
         double scalar = deltaT2 / h_m.data[ii];
         h_v.data[ii].x += scalar * h_f.data[ii].x;
@@ -484,7 +484,7 @@ void NoseHooverChainNPT::phaseC()
                                     access_location::host,
                                     access_mode::overwrite);
 
-        for (int ii = 0; ii < Ndof; ++ii)
+        for (int ii = 0; ii < Points; ++ii)
         { 
 
             //drift contribution with half scaling factor
@@ -534,7 +534,7 @@ Do a multi-step dance to get the positions and velocities updated on the gpu bra
     ArrayHandle<double2> d_f(State->returnForces(),access_location::device,access_mode::read);
     ArrayHandle<double2> d_v(State->returnVelocities(),access_location::device,access_mode::readwrite);
     ArrayHandle<double> d_m(State->returnMasses(),access_location::device,access_mode::read);
-    gpu_NoseHooverChainNPT_update_velocities(d_v.data,d_f.data,d_m.data,deltaT,Ndof);
+    gpu_NoseHooverChainNPT_update_velocities(d_v.data,d_f.data,d_m.data,deltaT,Points);
     };
     State->moveDegreesOfFreedom(State->returnVelocities(),deltaT2);
     };
@@ -548,7 +548,7 @@ we perform a parallel block reduction, and then a serial reduction
     {//array handle scope for keArray preparation
     ArrayHandle<double2> d_v(State->returnVelocities(),access_location::device,access_mode::read);
     ArrayHandle<double> d_m(State->returnMasses(),access_location::device,access_mode::read);
-    gpu_prepare_KE_vector(d_v.data,d_m.data,d_keArray.data,Ndof);
+    gpu_prepare_KE_vector(d_v.data,d_m.data,d_keArray.data,Points);
     }
 
     {//array handle scope for parallel reduction
@@ -556,7 +556,7 @@ we perform a parallel block reduction, and then a serial reduction
     ArrayHandle<double> d_kes(kineticEnergyScaleFactor,access_location::device,access_mode::readwrite);
     ArrayHandle<double> d_keIntermediate(keIntermediateReduction,access_location::device,access_mode::overwrite);
 
-    gpu_parallel_reduction(d_keArray.data,d_keIntermediate.data,d_kes.data,0,Ndof);
+    gpu_parallel_reduction(d_keArray.data,d_keIntermediate.data,d_kes.data,0,Points);
     }
     };
 
@@ -567,7 +567,7 @@ Simply call the velocity rescaling function...
     {
     ArrayHandle<double2> d_v(State->returnVelocities(),access_location::device,access_mode::readwrite);
     ArrayHandle<double> d_kes(kineticEnergyScaleFactor,access_location::device,access_mode::read);
-    gpu_NoseHooverChainNPT_scale_velocities(d_v.data,d_kes.data,Ndof);
+    gpu_NoseHooverChainNPT_scale_velocities(d_v.data,d_kes.data,Points);
     };
 */ 
 NoseHooverChainNPT::~NoseHooverChainNPT() = default;

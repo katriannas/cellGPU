@@ -84,7 +84,7 @@ class NoseHooverChainNPT : public simpleEquationOfMotion
         //!The length of the NH chain
         int Nchain;
         //!The number of particles in the State
-        int Ndof;
+        int Points;
         
         //!A helper vector for the GPU branch...can be asked to store 0.5*m[i]*v[i]^2 as an array
         GPUArray<double> keArray;
