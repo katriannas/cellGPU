@@ -223,10 +223,10 @@ int main(int argc, char*argv[])
 
     voronoiModel->computeForces();
 
-    char dataname[256];
-    sprintf(dataname,"final_state_T%.8f_p0%.5f_N%i_%s.nc", T, p0, numpts, timestamp.c_str());
+    char final_dataname[256];
+    sprintf(final_dataname,"final_state_T%.8f_p0%.5f_N%i_%s.nc", T, p0, numpts, timestamp.c_str());
     
-    shared_ptr<simpleVoronoiDatabase> final_state = make_shared<simpleVoronoiDatabase>(numpts, dataname, fileMode::replace);
+    shared_ptr<simpleVoronoiDatabase> final_state = make_shared<simpleVoronoiDatabase>(numpts, final_dataname, fileMode::replace);
     final_state->writeState(voronoiModel);
 
     if(initializeGPU)

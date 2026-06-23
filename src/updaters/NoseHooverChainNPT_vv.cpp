@@ -409,6 +409,7 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
     double E_baro_kin = barostatKineticEnergy();
     double E_baro_pot = P_target * V;
     double H_ext = E_pot + E_kin + E_baro_pot + E_baro_kin + E_thermostat;
+    double enthalpy = E_pot + E_kin + (P_target * V);
 
     out_stream << epsilon << "\t"
                << p_epsilon << "\t"
@@ -419,6 +420,7 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
                << E_pot << "\t"
                << E_kin << "\t"
                << E_baro_kin << "\t"
+               << enthalpy << "\t"
                << H_ext
                << std::endl;
 }
