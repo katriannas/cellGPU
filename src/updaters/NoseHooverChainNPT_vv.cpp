@@ -339,7 +339,7 @@ void NoseHooverChainNPT::updateBarostatVelocity(double dt4)
     // (d/Nf) * sum_i m_i v_i^2
     // = (2d/Nf) * K
     double kinetic_term =
-        (2.0 * double(d) / double(Nf)) * h_kes.data[0];
+        (2.0 / double(Nf)) * h_kes.data[0];
 
     double G_epsilon =
         double(d) * V * (P_inst - P_target)
