@@ -432,6 +432,7 @@ This is the step in which a force calculation is required.
 
  void NoseHooverChainNPT::phaseB()
     {
+    double dt2 = 0.5 * deltaT;
     double K_local = 0.0;
     ArrayHandle<double2> h_f(voronoi->returnForces(), access_location::host, access_mode::read);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(), access_location::host, access_mode::readwrite);
@@ -458,7 +459,7 @@ This is the step in which a force calculation is required.
         h_v.data[ii].x *= preScale;
         h_v.data[ii].y *= preScale;
 
-        double scalar = deltaT2 / h_m.data[ii];
+        double scalar = dt2 / h_m.data[ii];
 
         h_v.data[ii].x += scalar * h_f.data[ii].x;
         h_v.data[ii].y += scalar * h_f.data[ii].y;
@@ -490,6 +491,7 @@ void NoseHooverChainNPT::updateBarostatPosition(double dt)
 void NoseHooverChainNPT::phaseC()
 {
     double veps = getBarostatVelocity();
+    double dt2 = 0.5   * deltaT;
 
     //Updated scaling factors
     double x = 0.5 * veps * deltaT;
