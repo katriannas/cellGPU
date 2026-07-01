@@ -232,27 +232,27 @@ void NoseHooverChainNPT::phaseA()
     barostatVelocityScale(ef1);
 
     //Step 8
-    {
-    double veps     = getBarostatVelocity();
-    double vxi1     = Bath.data[0].y;
-    double combined = vxi1 + veps;
+   // {
+   // double veps     = getBarostatVelocity();
+   // double vxi1     = Bath.data[0].y;
+   // double combined = vxi1 + veps;
 
-    double scale = exp(-combined * dt2);
+   // double scale = exp(-combined * dt2);
 
-    ArrayHandle<double2> h_v(voronoi->returnVelocities(),
-                             access_location::host,
-                             access_mode::readwrite);
+   // ArrayHandle<double2> h_v(voronoi->returnVelocities(),
+     //                        access_location::host,
+     //                        access_mode::readwrite);
 
-    for (int ii = 0; ii < Points; ++ii)
-        {
-        h_v.data[ii].x *= scale;
-        h_v.data[ii].y *= scale;
-        }
+   // for (int ii = 0; ii < Points; ++ii)
+     //   {
+     //   h_v.data[ii].x *= scale;
+     //   h_v.data[ii].y *= scale;
+     //   }
 
     //keep kinetic energy synchronised with scaled velocities
-    h_kes.data[0] *= scale * scale;
+    //h_kes.data[0] *= scale * scale;
 
-    }
+    //}
 
     // Step 9
     for (int ii = 0; ii < Nchain; ++ii)
@@ -430,27 +430,48 @@ The simple part of the algorithm actually updates the positions and velocities o
 This is the step in which a force calculation is required.
 */
 
-void NoseHooverChainNPT::phaseB()
+ void NoseHooverChainNPT::phaseB()
     {
-    //Phase B: update particle velocities by dt/2 using current forces (action of L_1). Particle KE goes into h_kes.data[0] for use by the thermostat/barostat.
-    double deltaT2 = 0.5 * deltaT;
     double K_local = 0.0;
-
-    ArrayHandle<double2> h_f(voronoi->returnForces(),  access_location::host, access_mode::read);
+    ArrayHandle<double2> h_f(voronoi->returnForces(), access_location::host, access_mode::read);
     ArrayHandle<double2> h_v(voronoi->returnVelocities(), access_location::host, access_mode::readwrite);
-    ArrayHandle<double>  h_m(voronoi->returnMasses(),  access_location::host, access_mode::read);
+    ArrayHandle<double> h_m(voronoi->returnMasses(), access_location::host, access_mode::read);
+
+    double veps = getBarostatVelocity();
+
+    //New scaling factors from Tuckerman 2006 + GROMACS version
+    double y = (1.0 + double(d)/double(Nf)) * veps * deltaT / 4.0;
+    double s1 = exp(-y);
+    double s2;
+
+    //Tiny y causes problems :(
+    if (fabs(y) < 1.0e-8)
+        s2 = 1.0 + y*y/6.0;
+    else
+        s2 = sinh(y)/y;
+
+    const double preScale  = s1 / s2;
+    const double postScale = s1 * s2;
 
     for (int ii = 0; ii < Points; ++ii)
         {
+        h_v.data[ii].x *= preScale;
+        h_v.data[ii].y *= preScale;
+
         double scalar = deltaT2 / h_m.data[ii];
+
         h_v.data[ii].x += scalar * h_f.data[ii].x;
         h_v.data[ii].y += scalar * h_f.data[ii].y;
-        K_local       += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
+
+        h_v.data[ii].x *= postScale;
+        h_v.data[ii].y *= postScale;
+
+        K_local += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
         }
 
     ArrayHandle<double> h_kes(kineticEnergyScaleFactor, access_location::host, access_mode::readwrite);
     h_kes.data[0] = K_local;
-    }
+    } 
 
 void NoseHooverChainNPT::updateBarostatPosition(double dt)
     {
@@ -470,8 +491,17 @@ void NoseHooverChainNPT::phaseC()
 {
     double veps = getBarostatVelocity();
 
-    //Affine scaling factors
-    double scale_half = exp(0.5 * veps * deltaT);
+    //Updated scaling factors
+    double x = 0.5 * veps * deltaT;
+    double s1 = exp(x);
+    double s2;
+    if (fabs(x) < 1.0e-8)
+        s2 = 1.0 + (x * x)/6.0;
+    else
+        s2 = sinh(x)/x;
+    
+    double scale_half = s1 * s2;
+
 
     //Update box dimensions, mesh, and particle positions first
     updateBarostatPosition(deltaT);
