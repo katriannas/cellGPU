@@ -217,6 +217,7 @@ void NoseHooverChainNPT::phaseA()
             }
 
         Bath.data[ii].y += Bath.data[ii].z * dt4;
+        Bath.data[ii].y *= exp(-Bath.data[ii+1].y * dt8);
         }
 
     {
@@ -258,8 +259,10 @@ void NoseHooverChainNPT::phaseA()
     for (int ii = 0; ii < Nchain; ++ii)
         Bath.data[ii].x += dt2 * Bath.data[ii].y;
 
-    //Step 10
+//Step 10
     {
+    Bath.data[0].y *= exp(-Bath.data[1].y * dt8);
+
     double total_ke =
         h_kes.data[0] + barostatKineticEnergy();
 
@@ -268,13 +271,14 @@ void NoseHooverChainNPT::phaseA()
          - (2.0 * Points - 1.0) * Temperature)
         / Bath.data[0].w;
 
-    Bath.data[0].y += Bath.data[0].z * dt4;
+    Bath.data[0].y += Bath.data[0].z * dt4; 
+    Bath.data[0].y *= exp(-Bath.data[1].y * dt8);
     }
 
     //Steps 11-12
     for (int ii = 1; ii <= Nchain - 2; ++ii)
         {
-        Bath.data[ii].y *= exp(-Bath.data[ii-1].y * dt8);
+        Bath.data[ii].y *= exp(-Bath.data[ii+1].y * dt8);
 
         Bath.data[ii].z =
             (Bath.data[ii-1].w
@@ -284,14 +288,13 @@ void NoseHooverChainNPT::phaseA()
             / Bath.data[ii].w;
 
         Bath.data[ii].y += Bath.data[ii].z * dt4;
+        
+        Bath.data[ii].y *= exp(-Bath.data[ii+1].y * dt8);
         }
 
     //Step 13
     {
     int ii = Nchain - 1;
-
-    if (ii > 0)
-        Bath.data[ii].y *= exp(-Bath.data[ii-1].y * dt8);
 
     if (ii > 0)
         Bath.data[ii].z =
@@ -312,7 +315,7 @@ void NoseHooverChainNPT::phaseA()
         }
 
     Bath.data[ii].y += Bath.data[ii].z * dt4;
-    }
+        }
     }
     }
 
@@ -339,7 +342,7 @@ void NoseHooverChainNPT::updateBarostatVelocity(double dt4)
     // (d/Nf) * sum_i m_i v_i^2
     // = (2d/Nf) * K
     double kinetic_term =
-        (2.0 / double(Nf)) * h_kes.data[0];
+        (2.0 * double(d) / double(Nf)) * h_kes.data[0];
 
     double G_epsilon =
         double(d) * V * (P_inst - P_target)
