@@ -232,27 +232,27 @@ void NoseHooverChainNPT::phaseA()
     barostatVelocityScale(ef1);
 
     //Step 8
-   // {
+    {
    // double veps     = getBarostatVelocity();
-   // double vxi1     = Bath.data[0].y;
-   // double combined = vxi1 + veps;
+    double vxi1     = Bath.data[0].y;
+    //double combined = vxi1 + veps;
 
-   // double scale = exp(-combined * dt2);
+    double scale = exp(-vxi1 * dt2);
 
-   // ArrayHandle<double2> h_v(voronoi->returnVelocities(),
-     //                        access_location::host,
-     //                        access_mode::readwrite);
+    ArrayHandle<double2> h_v(voronoi->returnVelocities(),
+                             access_location::host,
+                             access_mode::readwrite);
 
-   // for (int ii = 0; ii < Points; ++ii)
-     //   {
-     //   h_v.data[ii].x *= scale;
-     //   h_v.data[ii].y *= scale;
-     //   }
+    for (int ii = 0; ii < Points; ++ii)
+        {
+        h_v.data[ii].x *= scale;
+        h_v.data[ii].y *= scale;
+        }
 
     //keep kinetic energy synchronised with scaled velocities
-    //h_kes.data[0] *= scale * scale;
+    h_kes.data[0] *= scale * scale;
 
-    //}
+    }
 
     // Step 9
     for (int ii = 0; ii < Nchain; ++ii)
@@ -497,7 +497,7 @@ void NoseHooverChainNPT::phaseC()
     double x = 0.5 * veps * deltaT;
     double s1 = exp(x);
     double s2;
-    if (fabs(x) < 1.0e-8)
+    if (abs(x) < 1.0e-8)
         s2 = 1.0 + (x * x)/6.0;
     else
         s2 = sinh(x)/x;
