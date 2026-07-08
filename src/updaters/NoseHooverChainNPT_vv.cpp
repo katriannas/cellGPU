@@ -381,23 +381,28 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
 {
     computeInstantaneousPressure();
 
-    //Get thermostat energy out of array
-    double E_thermostat = 0.0;
+    //Thermostat energy contributions
+    double E_thermo_kin = 0.0;
+    double E_thermo_pot = 0.0;
     ArrayHandle<double4> h_bv(BathVariables, access_location::host, access_mode::read);
     
     for (int ii = 0; ii < Nchain; ++ii)
         {
         double xi  = h_bv.data[ii].x; //thermostat position
-        double vxi = h_bv.data[ii].y; //thermostat velocity
+        double vxi = h_bv.data[ii].y; //thermostat momentum
         double Q   = h_bv.data[ii].w; //thermostat mass
 
-        E_thermostat += 0.5 * Q * vxi * vxi; 
-        //Potential
+        //Momentum-space kinetic energy
+        E_thermo_kin += 0.5 * (vxi * vxi) / Q; 
+        
+        //Potential energy of the thermostat chain
         if (ii == 0)
-            E_thermostat += (double(Nf) + 1.0) * Temperature * xi;
+            E_thermo_pot += (double(Nf) + 1.0) * Temperature * xi;
         else
-            E_thermostat += Temperature * xi;
+            E_thermo_pot += Temperature * xi;
         }
+    
+    double E_thermostat = E_thermo_kin + E_thermo_pot;
 
     double E_pot = voronoi->computeEnergy();
     double E_kin = 0.0;
@@ -409,20 +414,24 @@ void NoseHooverChainNPT::reportBarostatData(std::ostream& out_stream)
     for (int ii = 0; ii < Points; ++ii)
         E_kin += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
     }
+
+    //Barostat contributions
     double E_baro_kin = barostatKineticEnergy();
     double E_baro_pot = P_target * V;
-    double H_ext = E_pot + E_kin + E_baro_pot + E_baro_kin + E_thermostat;
-    double enthalpy = E_pot + E_kin + (P_target * V);
+    
+    double enthalpy = E_pot + E_kin + E_baro_pot;
+    double H_ext = enthalpy + E_baro_kin + E_thermostat;
 
     out_stream << epsilon << "\t"
                << p_epsilon << "\t"
-               << W << "\t"
-               << P_target << "\t"
-               << P_inst << "\t"
                << V << "\t"
+               << P_inst << "\t"
                << E_pot << "\t"
                << E_kin << "\t"
+               << E_baro_pot << "\t"
                << E_baro_kin << "\t"
+               << E_thermo_kin << "\t"
+               << E_thermo_pot << "\t"
                << enthalpy << "\t"
                << H_ext
                << std::endl;
