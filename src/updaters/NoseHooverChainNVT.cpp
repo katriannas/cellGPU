@@ -1,6 +1,7 @@
 #include "NoseHooverChainNVT.h"
 #include "NoseHooverChainNVT.cuh"
 #include "utilities.cuh"
+#include <ostream>
 /*! \file NoseHooverChainNVT.cpp */
 
 /*!
@@ -211,6 +212,55 @@ void NoseHooverChainNVT::propagateChainGPU()
     ArrayHandle<double4> d_Bath(BathVariables,access_location::device,access_mode::readwrite);
     gpu_NoseHooverChainNVT_propagateChain(d_kes.data,d_Bath.data,Temperature,deltaT,Nchain,Ndof);
     };
+
+void NoseHooverChainNVT::reportData(std::ostream& out_stream)
+{
+    double E_thermo_kin = 0.0;
+    double E_thermo_pot = 0.0;
+    ArrayHandle<double4> h_bv(BathVariables, access_location::host, access_mode::read);
+    
+    for (int ii = 0; ii < Nchain; ++ii)
+        {
+        double xi  = h_bv.data[ii].x; // thermostat position
+        double vxi = h_bv.data[ii].y; // thermostat velocity
+        double Q   = h_bv.data[ii].w; // thermostat mass
+
+        E_thermo_kin += 0.5 * Q * vxi * vxi; 
+        
+        //Potential energy of the thermostat chain
+        if (ii == 0)
+            {
+            E_thermo_pot += 2.0 * (double(Ndof) - 1.0) * Temperature * xi;
+            }
+        else
+            {
+            E_thermo_pot += Temperature * xi;
+            }
+        }
+
+    double E_thermostat = E_thermo_kin + E_thermo_pot;
+
+    double E_pot = State->computeEnergy();
+    double E_kin = 0.0;
+    {
+    ArrayHandle<double2> h_v(State->returnVelocities(), access_location::host, access_mode::read);
+    ArrayHandle<double>  h_m(State->returnMasses(), access_location::host, access_mode::read);
+    
+    for (int ii = 0; ii < Ndof; ++ii)
+        {
+        E_kin += 0.5 * h_m.data[ii] * dot(h_v.data[ii], h_v.data[ii]);
+        }
+    }
+
+    double H_ext = E_pot + E_kin + E_thermostat;
+
+    out_stream << E_pot << "\t"
+               << E_kin << "\t"
+               << E_thermo_kin << "\t"
+               << E_thermo_pot << "\t"
+               << H_ext
+               << std::endl;
+}
 
 /*!
 The GPU implementation of the identical algorithm done on the CPU
